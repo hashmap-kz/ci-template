@@ -69,3 +69,21 @@ changelog:
       order: 400
     - title: Other work
       order: 9999
+
+brews:
+  - name: ci-template
+    repository:
+      owner: hashmap-kz
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.GITHUB_TOKEN }}"
+    commit_author:
+      name: alexey.zh
+      email: mailbox.stdio@gmail.com
+    homepage: https://github.com/hashmap-kz/homebrew-tap
+    description: "ci-template
+    license: "Apache-2.0"
+    install: |
+      bin.install "ci-template"
+    test: |
+      system "#{bin}/ci-template"
