@@ -24,6 +24,24 @@ builds:
       - goos: windows
         goarch: arm64
 
+brews:
+  - name: ci-template
+    repository:
+      owner: hashmap-kz
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.GITHUB_TOKEN }}"
+    commit_author:
+      name: alexey.zh
+      email: mailbox.stdio@gmail.com
+    homepage: https://github.com/hashmap-kz/homebrew-tap
+    description: "ci-template"
+    license: "Apache-2.0"
+    install: |
+      bin.install "ci-template"
+    test: |
+      system "#{bin}/ci-template"
+
 checksum:
   name_template: checksums.txt
 
@@ -32,7 +50,7 @@ archives:
       - ci-template
     name_template: "{{ .ProjectName }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     wrap_in_directory: "false"
-    formats: [ "tar.gz" ]
+    formats: ["tar.gz"]
     files:
       - LICENSE
 
@@ -69,21 +87,3 @@ changelog:
       order: 400
     - title: Other work
       order: 9999
-
-brews:
-  - name: ci-template
-    repository:
-      owner: hashmap-kz
-      name: homebrew-tap
-      branch: main
-      token: "{{ .Env.GITHUB_TOKEN }}"
-    commit_author:
-      name: alexey.zh
-      email: mailbox.stdio@gmail.com
-    homepage: https://github.com/hashmap-kz/homebrew-tap
-    description: "ci-template
-    license: "Apache-2.0"
-    install: |
-      bin.install "ci-template"
-    test: |
-      system "#{bin}/ci-template"
