@@ -30,7 +30,7 @@ brews:
       owner: hashmap-kz
       name: homebrew-tap
       branch: main
-      token: "{{ .Env.GITHUB_TOKEN }}"
+      token: "{{ .secrets.BREW_TAP }}"
     commit_author:
       name: alexey.zh
       email: mailbox.stdio@gmail.com
