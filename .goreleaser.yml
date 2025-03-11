@@ -54,9 +54,9 @@ archives:
       - LICENSE
 
 nfpms:
-  - file_name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+  - file_name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     maintainer: alexey.zh
-    homepage: https://github.com/hashmap-kz
+    homepage: "https://github.com/hashmap-kz/ci-template"
     description: "ci-template project description"
     license: "Apache-2.0"
     formats:
