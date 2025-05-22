@@ -107,7 +107,7 @@ changelog:
 
 dockers:
   - image_templates:
-      - "ghcr.io/mailboxsq7/ci-template:{{ .Version }}-amd64"
+      - "quay.io/mailboxsq7/ci-template:{{ .Version }}-amd64"
     dockerfile: Dockerfile
     extra_files:
       - go.mod
@@ -128,9 +128,9 @@ dockers:
       - "--platform=linux/amd64"
 
 docker_manifests:
-  - name_template: "ghcr.io/mailboxsq7/ci-template:{{ .Version }}"
+  - name_template: "quay.io/mailboxsq7/ci-template:{{ .Version }}"
     image_templates:
-      - "ghcr.io/mailboxsq7/ci-template:{{ .Version }}-amd64"
-  - name_template: "ghcr.io/mailboxsq7/ci-template:latest"
+      - "quay.io/mailboxsq7/ci-template:{{ .Version }}-amd64"
+  - name_template: "quay.io/mailboxsq7/ci-template:latest"
     image_templates:
-      - "ghcr.io/mailboxsq7/ci-template:{{ .Version }}-amd64"
+      - "quay.io/mailboxsq7/ci-template:{{ .Version }}-amd64"
