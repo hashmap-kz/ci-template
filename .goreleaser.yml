@@ -109,6 +109,12 @@ dockers:
   - image_templates:
       - "ghcr.io/mailboxsq7/ci-template:{{ .Version }}-amd64"
     dockerfile: Dockerfile
+    extra_files:
+      - go.mod
+      - go.sum
+      - main.go
+      - internal/
+      - pkg/
     build_flag_templates:
       - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/mailboxsq7/ci-template/master/README.md"
       - '--label=io.artifacthub.package.maintainers=[{"name":"alexey.zh","email":"testdev@gmail.com"}]'
