@@ -18,9 +18,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Run unit tests
         run: make test
+      - name: Ensure gofmt
+        run: test -z "$(gofmt -s -d .)"
+      - name: Ensure go.mod is already tidied
+        run: go mod tidy && git diff --exit-code
 
       # - name: Run GoReleaser
       #   uses: goreleaser/goreleaser-action@v6
