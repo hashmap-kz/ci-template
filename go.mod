@@ -1,7 +1,10 @@
 module github.com/hashmap-kz/ci-template
 
-go 1.23.4
+go 1.24.0
 
-require sigs.k8s.io/yaml v1.3.0
+toolchain go1.24.3
 
-require gopkg.in/yaml.v2 v2.4.0 // indirect
+require (
+	k8s.io/client-go v0.33.0
+	sigs.k8s.io/yaml v1.4.0
+)
