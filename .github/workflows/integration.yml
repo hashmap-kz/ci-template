@@ -51,7 +51,7 @@ jobs:
           docker compose -f test/integration/environ/docker-compose.yml build sshd
           docker compose -f test/integration/environ/docker-compose.yml build minio
           mkdir -p ${{ env.CACHE_FOLDER }}
-          docker save pgrwl/pg | gzip -c > ${{ env.CACHE_FILE_DOCKER_PG_PRIMARY }}
+          docker save pgrwl/pg-primary | gzip -c > ${{ env.CACHE_FILE_DOCKER_PG_PRIMARY }}
           docker save pgrwl/sshd | gzip -c > ${{ env.CACHE_FILE_DOCKER_SSHD }}
           docker save pgrwl/minio | gzip -c > ${{ env.CACHE_FILE_DOCKER_MINIO }}
           ls -lah ${{ env.CACHE_FOLDER }}
