@@ -39,6 +39,7 @@ jobs:
       - name: Build images with Buildx (cache aware)
         working-directory: test/integration/environ
         run: |
+          cd ../../../ && make build && mv bin test/integration/environ
           docker buildx build \
             --cache-from=type=local,src=/tmp/.buildx-cache \
             --cache-to=type=local,dest=/tmp/.buildx-cache \
