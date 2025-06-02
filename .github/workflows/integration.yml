@@ -22,8 +22,12 @@ jobs:
     name: Build images
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Compute image cache key
         id: cache-key
+        ## TODO: dockerfiles, shell changes
         run: echo "value=cache-${{ hashFiles('test/integration/environ/**') }}" >> $GITHUB_OUTPUT
 
       - name: Restore Docker image cache
@@ -36,10 +40,6 @@ jobs:
             ${{ env.CACHE_FILE_DOCKER_MINIO }}
           #key: ${{ env.IMAGES_CACHE_KEY }}
           key: ${{ steps.cache-key.outputs.value }}
-
-      - name: Checkout code
-        if: steps.cache-images.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
 
       - name: Set up Go
         if: steps.cache-images.outputs.cache-hit != 'true'
@@ -73,6 +73,7 @@ jobs:
 
       - name: Compute image cache key
         id: cache-key
+        ## TODO: dockerfiles, shell changes
         run: echo "value=cache-${{ hashFiles('test/integration/environ/**') }}" >> $GITHUB_OUTPUT
 
       - name: Set up Go
