@@ -15,7 +15,8 @@ env:
   CACHE_FILE_DOCKER_SSHD: docker-cache/docker_sshd.tgz
   CACHE_FILE_DOCKER_PG_PRIMARY: docker-cache/docker_pg_primary.tgz
   CACHE_FILE_DOCKER_MINIO: docker-cache/docker_minio.tgz
-  IMAGES_CACHE_KEY: docker-images-${{ github.sha }}
+  #IMAGES_CACHE_KEY: docker-images-${{ github.sha }}
+  IMAGES_CACHE_KEY: docker-images-${{ hashFiles('test/integration/environ/**/Dockerfile*', 'test/integration/environ/**/*.sh') }}
 
 jobs:
   build_images:
