@@ -30,6 +30,10 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Prepare Binary
+        if: steps.cache-images.outputs.cache-hit != 'true'
+        run: (make build && mv bin test/integration/environ)
+
       - name: Restore Docker image cache
         id: cache-images
         uses: actions/cache@v4
