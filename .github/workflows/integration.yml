@@ -27,5 +27,5 @@ jobs:
       - name: Build and Start Test Environment
         working-directory: test/integration/environ
         run: |
-          docker-compose up --build -d
-          docker-compose ps
+          docker compose up --build -d
+          docker compose ps
