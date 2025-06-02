@@ -12,7 +12,9 @@ on:
 
 env:
   CACHE_FOLDER: docker-cache
-  CACHE_FILE_DOCKER_PREFIX: docker-cache/docker_prefix.tgz
+  CACHE_FILE_DOCKER_SSHD: docker-cache/docker_sshd.tgz
+  CACHE_FILE_DOCKER_PG_PRIMARY: docker-cache/docker_pg_primary.tgz
+  CACHE_FILE_DOCKER_MINIO: docker-cache/docker_minio.tgz
   IMAGES_CACHE_KEY: docker-images-${{ github.sha }}
 
 jobs:
@@ -32,21 +34,28 @@ jobs:
         id: cache-images
         uses: actions/cache@v4
         with:
-          path: ${{ env.CACHE_FILE_DOCKER_PREFIX }}
+          path: |
+            ${{ env.CACHE_FILE_DOCKER_PG_PRIMARY }}
+            ${{ env.CACHE_FILE_DOCKER_SSHD }}
+            ${{ env.CACHE_FILE_DOCKER_MINIO }}
           key: ${{ env.IMAGES_CACHE_KEY }}
 
       - name: Build Docker images and cache them
         if: steps.cache-images.outputs.cache-hit != 'true'
         run: |
-          docker compose -f test/integration/environ/docker-compose.yml build vm
+          docker compose -f test/integration/environ/docker-compose.yml build pg-primary
+          docker compose -f test/integration/environ/docker-compose.yml build sshd
+          docker compose -f test/integration/environ/docker-compose.yml build minio
           mkdir -p ${{ env.CACHE_FOLDER }}
-          docker save pgrwl/sshd | gzip -c > ${{ env.CACHE_FILE_DOCKER_PREFIX }}
-          ls -lh ${{ env.CACHE_FOLDER }}
+          docker save pgrwl/pg | gzip -c > ${{ env.CACHE_FILE_DOCKER_PG_PRIMARY }}
+          docker save pgrwl/sshd | gzip -c > ${{ env.CACHE_FILE_DOCKER_SSHD }}
+          docker save pgrwl/minio | gzip -c > ${{ env.CACHE_FILE_DOCKER_MINIO }}
+          ls -lah ${{ env.CACHE_FOLDER }}
 
   test:
     name: Run integration tests
     runs-on: ubuntu-latest
-    needs: [build_images]
+    needs: [ build_images ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -60,7 +69,10 @@ jobs:
         id: cache-images
         uses: actions/cache@v4
         with:
-          path: ${{ env.CACHE_FILE_DOCKER_PREFIX }}
+          path: |
+            ${{ env.CACHE_FILE_DOCKER_PG_PRIMARY }}
+            ${{ env.CACHE_FILE_DOCKER_SSHD }}
+            ${{ env.CACHE_FILE_DOCKER_MINIO }}
           key: ${{ env.IMAGES_CACHE_KEY }}
 
       - name: Fail if cache is missing
@@ -71,10 +83,11 @@ jobs:
 
       - name: Load Docker images from cache
         run: |
-          gunzip -c ${{ env.CACHE_FILE_DOCKER_PREFIX }} | docker load
+          gunzip -c ${{ env.CACHE_FILE_DOCKER_PG_PRIMARY }} | docker load
+          gunzip -c ${{ env.CACHE_FILE_DOCKER_SSHD }} | docker load
+          gunzip -c ${{ env.CACHE_FILE_DOCKER_MINIO }} | docker load
 
       - name: Run test (example step)
         run: |
           docker images
-          docker ps
-          go test ./test/integration/environ -v
+          docker ps -a
