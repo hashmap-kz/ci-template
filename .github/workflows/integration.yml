@@ -13,6 +13,9 @@ on:
 jobs:
   integration-test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: test/integration/environ
 
     steps:
       - name: Checkout
@@ -39,21 +42,21 @@ jobs:
             buildx-${{ github.ref }}
             buildx-
 
-      - name: Build app image with cache
-        uses: docker/build-push-action@v5
-        with:
-          context: ./test/integration/environ
-          file: ./test/integration/environ/Dockerfile_pg
-          tags: pgrwl:pg
-          load: true
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
+#      - name: Build app image with cache
+#        uses: docker/build-push-action@v5
+#        with:
+#          context: ./test/integration/environ
+#          file: ./test/integration/environ/Dockerfile_pg
+#          tags: pgrwl:pg
+#          load: true
+#          cache-from: type=local,src=/tmp/.buildx-cache
+#          cache-to: type=local,dest=/tmp/.buildx-cache
 
       - name: Build db image with cache
         uses: docker/build-push-action@v5
         with:
           context: ./test/integration/environ
-          file: ./test/integration/environ/Dockerfile_minio
+          file: ./test/integration/environ/Dockerfile_sshd
           tags: pgrwl:minio
           load: true
           cache-from: type=local,src=/tmp/.buildx-cache
