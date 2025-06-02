@@ -3,7 +3,8 @@ services:
     build:
       context: .
       dockerfile: ./dockerfiles/sshd/Dockerfile
-    container_name: vm
+    image: pgrwl/sshd
+    container_name: pgrwl_vm
     restart: unless-stopped
     ports:
       - "2525:22"
