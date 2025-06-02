@@ -29,6 +29,7 @@ jobs:
 
       - name: Cache Docker layers
         uses: actions/cache@v4
+        id: cache-images
         with:
           path: /tmp/.buildx-cache
           key: buildx-${{ github.ref }}-${{ github.sha }}
