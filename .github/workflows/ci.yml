@@ -13,39 +13,34 @@ on:
 jobs:
   ci_job:
     name: test
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-
+        uses: actions/checkout@master
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
       - id: go-cache-paths
         run: |
-          echo "go-build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
-          echo "go-mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
-
+          echo "::set-output name=go-build::$(go env GOCACHE)"
+          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
       - name: Go Build Cache
         uses: actions/cache@v4
         with:
           path: ${{ steps.go-cache-paths.outputs.go-build }}
-          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}-linux-amd64
-
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
       - name: Go Mod Cache
         uses: actions/cache@v4
         with:
           path: ${{ steps.go-cache-paths.outputs.go-mod }}
-          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}-linux-amd64
-
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
       - name: Ensure gofmt
         run: test -z "$(gofmt -s -d .)"
-        shell: bash
-
       - name: Ensure go.mod is already tidied
-        run: go mod tidy && git diff --no-patch --exit-code
-        shell: bash
-
+        run: go mod tidy && git diff --exit-code
       - name: Run unit tests
-        run: go test -v -race ./...
-        shell: bash
+        run: go test ./...
 
       # Uncomment these when you're ready to use GoReleaser
       #
