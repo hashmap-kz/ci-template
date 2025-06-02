@@ -13,9 +13,6 @@ on:
 jobs:
   integration-test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: test/integration/environ
 
     steps:
       - name: Checkout
@@ -28,7 +25,7 @@ jobs:
           cache: true
 
       - name: Build Go binaries and move to integration directory
-        run: (cd ../../../ && make build && mv bin test/integration/environ)
+        run: echo "${PWD}" && make build && mv bin test/integration/environ
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -66,6 +63,7 @@ jobs:
         run: |
           docker compose up -d --build
           docker compose ps
+          docker images
 
       #      - name: Run integration tests
       #        run: go test ./test/integration/environ -v
