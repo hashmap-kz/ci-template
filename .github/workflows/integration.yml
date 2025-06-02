@@ -28,7 +28,7 @@ jobs:
           cache: true
 
       - name: Build Go binaries and move to integration directory
-        run: echo "${PWD}" && make build && mv bin test/integration/environ
+        run: echo "${PWD}" && (cd ../../../ && make build && mv bin test/integration/environ)
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
