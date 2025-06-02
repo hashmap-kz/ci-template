@@ -8,7 +8,7 @@ RUN echo "export PS1='\\u@\\h:\\w\\$ '" >> /etc/profile
 
 # Setup 'root' user
 RUN echo "root:root" | chpasswd
-COPY files/dotfiles/ /root
+COPY files/dotfiles /root
 
 # Create user
 RUN adduser -D -s /bin/bash testuser && echo "testuser:testuser" | chpasswd
@@ -28,7 +28,7 @@ RUN sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config && \
 RUN ssh-keygen -A
 
 # Setup 'testuser'
-COPY files/dotfiles/ /home/testuser
+COPY files/dotfiles /home/testuser
 RUN chmod 700 /home/testuser/.ssh && \
     chmod 600 /home/testuser/.ssh/authorized_keys && \
     chown -R testuser:testuser /home/testuser

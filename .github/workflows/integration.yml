@@ -10,78 +10,45 @@ on:
       - "master"
       - "release/**"
 
-jobs:
-  integration-test:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: test/integration/environ
+env:
+  CACHE_FOLDER: ~/docker-images-${{ github.sha }}
+  CACHE_FILE_DOCKER_PREFIX: ~/docker-images-${{ github.sha }}/docker_prefix.tgz
+  IMAGES_CACHE_KEY: docker-images-${{ github.sha }}
 
+jobs:
+  build_images:
+    name: Build images
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Docker images caching
+        id: cache-images
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.CACHE_FILE_DOCKER_PREFIX }}
+          key: ${{ env.IMAGES_CACHE_KEY }}
+
+      - name: Check out code into the Go module directory
+        if: steps.cache-images.outputs.cache-hit != 'true'
         uses: actions/checkout@v4
 
-      - name: Setup Go
+      - name: Set up Go 1.x
+        if: steps.cache-images.outputs.cache-hit != 'true'
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
+        id: go
 
-      - name: Build Go binaries and move to integration directory
-        run: echo "${PWD}" && (cd ../../../ && make build && mv bin test/integration/environ)
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Restore Docker layer cache
-        uses: actions/cache@v4
-        with:
-          path: /tmp/.buildx-cache
-          key: buildx-${{ github.ref }}-${{ github.sha }}
-          restore-keys: |
-            buildx-${{ github.ref }}
-            buildx-
-
-      - name: Build PG image with cache
-        uses: docker/build-push-action@v5
-        with:
-          context: ./test/integration/environ
-          file: ./test/integration/environ/Dockerfile_pg
-          tags: pgrwl:pg
-          load: true
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
-
-      - name: Build SSHD image with cache
-        uses: docker/build-push-action@v5
-        with:
-          context: ./test/integration/environ
-          file: ./test/integration/environ/Dockerfile_sshd
-          tags: pgrwl:minio
-          load: true
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
-
-      - name: Build MinIO image with cache
-        uses: docker/build-push-action@v5
-        with:
-          context: ./test/integration/environ
-          file: ./test/integration/environ/Dockerfile_minio
-          tags: pgrwl:minio
-          load: true
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
-
-
-      - name: Run docker-compose
+      - name: Get dependencies
+        if: steps.cache-images.outputs.cache-hit != 'true'
         run: |
-          docker compose up -d --build
-          docker compose ps
-          docker images
+          go get -v -t -d ./...
 
-      #      - name: Run integration tests
-      #        run: go test ./test/integration/environ -v
-
-      - name: Shut down containers
-        if: always()
-        run: docker compose down -v
+      - name: Build images
+        if: steps.cache-images.outputs.cache-hit != 'true'
+        run: |
+          docker compose build vm -f integration/environ/docker-compose.yml 
+          mkdir -p ${CACHE_FOLDER}
+          sudo rm -rf ${CACHE_FOLDER}/*
+          docker save pgrwl/vm | gzip -c > ${CACHE_FILE_DOCKER_PREFIX}
+          ls ${CACHE_FOLDER}          
