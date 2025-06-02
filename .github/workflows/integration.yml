@@ -47,7 +47,7 @@ jobs:
       - name: Build images
         if: steps.cache-images.outputs.cache-hit != 'true'
         run: |
-          docker compose build vm -f integration/environ/docker-compose.yml 
+          docker compose -f integration/environ/docker-compose.yml build vm 
           mkdir -p ${CACHE_FOLDER}
           sudo rm -rf ${CACHE_FOLDER}/*
           docker save pgrwl/vm | gzip -c > ${CACHE_FILE_DOCKER_PREFIX}
