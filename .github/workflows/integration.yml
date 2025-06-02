@@ -28,15 +28,49 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Cache Docker layers
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          key: buildx-${{ github.ref }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-
+            buildx-${{ github.ref }}
+            buildx-
+
+      - name: Build images with Buildx (cache aware)
+        working-directory: test/integration/environ
+        run: |
+          docker buildx build \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache \
+            --tag test/minio \
+            --load \
+            -f Dockerfile_minio .
+          docker buildx build \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache \
+            --tag test/pg \
+            --load \
+            -f Dockerfile_pg .
+          docker buildx build \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache \
+            --tag test/pg17 \
+            --load \
+            -f Dockerfile_pg17 .
+          docker buildx build \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache \
+            --tag test/sshd \
+            --load \
+            -f Dockerfile_sshd .
 
       - name: Build and Start Test Environment
         working-directory: test/integration/environ
         run: |
           make restart
           make ps
+
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
