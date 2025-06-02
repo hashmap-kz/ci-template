@@ -18,11 +18,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
-
       - id: go-cache-paths
         run: |
           echo "go-build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
@@ -39,6 +34,11 @@ jobs:
         with:
           path: ${{ steps.go-cache-paths.outputs.go-mod }}
           key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}-linux-amd64
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
 
       - name: Ensure gofmt
         run: test -z "$(gofmt -s -d .)"
