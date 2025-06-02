@@ -77,8 +77,6 @@ jobs:
         run: echo "value=cache-${{ hashFiles('test/integration/environ/**') }}" >> $GITHUB_OUTPUT
 
       - name: Set up Go
-        ## TODO: ???
-        if: steps.cache-images.outputs.cache-hit != 'true'
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
