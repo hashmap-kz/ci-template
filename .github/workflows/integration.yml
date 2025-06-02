@@ -55,41 +55,41 @@ jobs:
           docker save pgrwl/sshd | gzip -c > ${CACHE_FILE_DOCKER_PREFIX}
           ls ${CACHE_FOLDER}          
 
-#  test:
-#    name: test
-#    runs-on: ubuntu-latest
-#    needs: [ build_images ]
-#    strategy:
-#      fail-fast: false
-#    steps:
-#      - name: Check out code into the Go module directory
-#        uses: actions/checkout@v4
-#
-#      - name: Set up Go 1.x
-#        uses: actions/setup-go@v5
-#        with:
-#          go-version-file: go.mod
-#        id: go
-#
-#      - name: Get dependencies
-#        run: |
-#          go get -v -t -d ./...
-#
-#      - name: Load docker images
-#        id: cache-images
-#        uses: actions/cache@v4
-#        with:
-#          path: |
-#            ${{ env.CACHE_FILE_DOCKER_PREFIX }}
-#          key: ${{ env.IMAGES_CACHE_KEY }}
-#
-#      - name: Fail if no cached images
-#        if: steps.cache-images.outputs.cache-hit != 'true'
-#        run: |
-#          echo "Failed to fetch cached docker images."
-#          exit 1
-#
-#      - name: Run test
-#        run: |
-#          docker ps
-#          docker images
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    needs: [ build_images ]
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v4
+
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+        id: go
+
+      - name: Get dependencies
+        run: |
+          go get -v -t -d ./...
+
+      - name: Load docker images
+        id: cache-images
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.CACHE_FILE_DOCKER_PREFIX }}
+          key: ${{ env.IMAGES_CACHE_KEY }}
+
+      - name: Fail if no cached images
+        if: steps.cache-images.outputs.cache-hit != 'true'
+        run: |
+          echo "Failed to fetch cached docker images."
+          exit 1
+
+      - name: Run test
+        run: |
+          docker ps
+          docker images
