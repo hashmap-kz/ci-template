@@ -45,8 +45,8 @@ jobs:
       - name: Build app image with cache
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./Dockerfile_pg
+          context: ./test/integration/environ
+          file: ./test/integration/environ/Dockerfile_pg
           tags: pgrwl:pg
           load: true
           cache-from: type=local,src=/tmp/.buildx-cache
@@ -55,8 +55,8 @@ jobs:
       - name: Build db image with cache
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./Dockerfile_minio
+          context: ./test/integration/environ
+          file: ./test/integration/environ/Dockerfile_minio
           tags: pgrwl:minio
           load: true
           cache-from: type=local,src=/tmp/.buildx-cache
