@@ -38,6 +38,7 @@ jobs:
 
       - name: Build images with Buildx (cache aware)
         working-directory: test/integration/environ
+        if: steps.cache-images.outputs.cache-hit != 'true'
         run: |
           (cd ../../../ && make build && mv bin test/integration/environ)
           docker buildx build \
