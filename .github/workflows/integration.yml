@@ -42,17 +42,17 @@ jobs:
             buildx-${{ github.ref }}
             buildx-
 
-#      - name: Build app image with cache
-#        uses: docker/build-push-action@v5
-#        with:
-#          context: ./test/integration/environ
-#          file: ./test/integration/environ/Dockerfile_pg
-#          tags: pgrwl:pg
-#          load: true
-#          cache-from: type=local,src=/tmp/.buildx-cache
-#          cache-to: type=local,dest=/tmp/.buildx-cache
+      - name: Build PG image with cache
+        uses: docker/build-push-action@v5
+        with:
+          context: ./test/integration/environ
+          file: ./test/integration/environ/Dockerfile_pg
+          tags: pgrwl:pg
+          load: true
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
 
-      - name: Build db image with cache
+      - name: Build SSHD image with cache
         uses: docker/build-push-action@v5
         with:
           context: ./test/integration/environ
@@ -61,6 +61,17 @@ jobs:
           load: true
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
+
+      - name: Build MinIO image with cache
+        uses: docker/build-push-action@v5
+        with:
+          context: ./test/integration/environ
+          file: ./test/integration/environ/Dockerfile_minio
+          tags: pgrwl:minio
+          load: true
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
 
       - name: Run docker-compose
         run: |
