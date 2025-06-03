@@ -7,7 +7,10 @@ on:
       - "master"
       - "release/**"
     paths-ignore:
+      - ".github/**"
       - "docs/**"
+      - "examples/**"
+      - "hack/**"
       - "**/*.md"
       - "**/*.gitignore"
       - "**/*.gitattributes"
@@ -16,7 +19,10 @@ on:
       - "master"
       - "release/**"
     paths-ignore:
+      - ".github/**"
       - "docs/**"
+      - "examples/**"
+      - "hack/**"
       - "**/*.md"
       - "**/*.gitignore"
       - "**/*.gitattributes"
