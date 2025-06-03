@@ -1,3 +1,4 @@
+---
 name: CI
 
 on:
@@ -5,10 +6,20 @@ on:
     branches:
       - "master"
       - "release/**"
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "**/*.gitignore"
+      - "**/*.gitattributes"
   pull_request:
     branches:
       - "master"
       - "release/**"
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "**/*.gitignore"
+      - "**/*.gitattributes"
 
 jobs:
   ci_job:
