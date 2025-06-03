@@ -17,7 +17,7 @@ func IsValidIdentifier(s string) bool {
 		return false
 	}
 
-	// Remaining characters can be letters, digits, or underscores
+	// Remaining characters can be letters, digits, or underscores.
 	for _, r := range s {
 		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' {
 			return false
