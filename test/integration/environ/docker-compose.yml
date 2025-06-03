@@ -1,0 +1,103 @@
+services:
+  pg-primary:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/pg-17-primary/Dockerfile
+    image: pgrwl/pg-primary
+    container_name: pg-primary
+    restart: unless-stopped
+    environment:
+      TZ: "Asia/Aqtau"
+    ports:
+      - "15432:5432"
+      - "2323:22"
+    volumes:
+      - pg-primary-data:/var/lib/postgresql/17/main
+
+  pg-standby:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/pg-17-standby/Dockerfile
+    image: pgrwl/pg-standby
+    container_name: pg-standby
+    depends_on:
+      - pg-primary
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      TZ: "Asia/Aqtau"
+    ports:
+      - "15433:5432"
+    volumes:
+      - pg-standby-data:/var/lib/postgresql/data
+      - ./files/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+      - ./files/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    entrypoint: [
+        "/bin/bash",
+        "-c",
+        "
+        rm -rf /var/lib/postgresql/data/* &&
+        until pg_basebackup -h pg-primary -D /var/lib/postgresql/data -U postgres -Fp -Xs -P -R; do
+        echo 'Waiting for primary...';
+        sleep 2;
+        done &&
+        exec docker-entrypoint.sh postgres \
+        -c hba_file=/etc/postgresql/pg_hba.conf \
+        -c config_file=/etc/postgresql/postgresql.conf \
+        -c hot_standby=on
+        ",
+      ]
+
+  sshd:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/sshd/Dockerfile
+    image: pgrwl/sshd
+    container_name: pgrwl_sshd
+    restart: unless-stopped
+    ports:
+      - "2525:22"
+
+  minio:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/minio/Dockerfile
+    image: pgrwl/minio
+    container_name: pgrwl_minio
+    ports:
+      - "9000:9000" # S3 API
+      - "9001:9001" # Console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    volumes:
+      - minio_data:/data
+      - ./files/minio/certs:/root/.minio/certs:ro
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-k", "https://localhost:9000/minio/health/ready"]
+      interval: 2s
+      timeout: 20s
+      retries: 30
+    restart: unless-stopped
+
+  createbuckets:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/minio_mc/Dockerfile
+    image: pgrwl/minio-mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+      mc alias set local https://minio:9000 minioadmin minioadmin123 --insecure && \
+      mc mb local/backups --insecure || true && \
+      mc version enable local/backups --insecure && \
+      exit 0;
+      "
+
+volumes:
+  pg-primary-data:
+  pg-standby-data:
+  minio_data:
