@@ -54,9 +54,7 @@ jobs:
       - name: Build Docker images and cache them
         if: steps.cache-images.outputs.cache-hit != 'true'
         run: |
-          docker compose -f test/integration/environ/docker-compose.yml build pg-primary
-          docker compose -f test/integration/environ/docker-compose.yml build sshd
-          docker compose -f test/integration/environ/docker-compose.yml build minio
+          docker compose -f test/integration/environ/docker-compose.yml build pg-primary sshd minio
           mkdir -p ${{ env.CACHE_FOLDER }}
           docker save pgrwl/pg-primary | gzip -c > ${{ env.CACHE_FILE_DOCKER_PG_PRIMARY }}
           docker save pgrwl/sshd | gzip -c > ${{ env.CACHE_FILE_DOCKER_SSHD }}
