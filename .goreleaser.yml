@@ -105,32 +105,32 @@ changelog:
     - title: Other work
       order: 9999
 
-dockers:
-  - image_templates:
-      - "quay.io/mailboxsq7/ci-template:{{ .Version }}-amd64"
-    dockerfile: Dockerfile
-    extra_files:
-      - go.mod
-      - go.sum
-      - main.go
-      - internal/
-      - pkg/
-    build_flag_templates:
-      - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/mailboxsq7/ci-template/master/README.md"
-      - '--label=io.artifacthub.package.maintainers=[{"name":"alexey.zh","email":"testdev@gmail.com"}]'
-      - "--label=io.artifacthub.package.license=MIT"
-      - "--label=org.opencontainers.image.description=CHANGEME:brief project description"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source={{.GitURL}}"
-      - "--platform=linux/amd64"
-
-docker_manifests:
-  - name_template: "quay.io/mailboxsq7/ci-template:{{ .Version }}"
-    image_templates:
-      - "quay.io/mailboxsq7/ci-template:{{ .Version }}-amd64"
-  - name_template: "quay.io/mailboxsq7/ci-template:latest"
-    image_templates:
-      - "quay.io/mailboxsq7/ci-template:{{ .Version }}-amd64"
+#dockers:
+#  - image_templates:
+#      - "quay.io/mailboxsq7/ci-template:{{ .Version }}-amd64"
+#    dockerfile: Dockerfile
+#    extra_files:
+#      - go.mod
+#      - go.sum
+#      - main.go
+#      - internal/
+#      - pkg/
+#    build_flag_templates:
+#      - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/mailboxsq7/ci-template/master/README.md"
+#      - '--label=io.artifacthub.package.maintainers=[{"name":"alexey.zh","email":"testdev@gmail.com"}]'
+#      - "--label=io.artifacthub.package.license=MIT"
+#      - "--label=org.opencontainers.image.description=CHANGEME:brief project description"
+#      - "--label=org.opencontainers.image.created={{.Date}}"
+#      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+#      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+#      - "--label=org.opencontainers.image.version={{.Version}}"
+#      - "--label=org.opencontainers.image.source={{.GitURL}}"
+#      - "--platform=linux/amd64"
+#
+#docker_manifests:
+#  - name_template: "quay.io/mailboxsq7/ci-template:{{ .Version }}"
+#    image_templates:
+#      - "quay.io/mailboxsq7/ci-template:{{ .Version }}-amd64"
+#  - name_template: "quay.io/mailboxsq7/ci-template:latest"
+#    image_templates:
+#      - "quay.io/mailboxsq7/ci-template:{{ .Version }}-amd64"
