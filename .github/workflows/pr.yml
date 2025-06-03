@@ -21,6 +21,7 @@ jobs:
           fi
 
   conventional-commits:
+    name: Check Conventional Commit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
