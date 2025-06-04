@@ -1,4 +1,9 @@
-on: pull_request_target
+name: Welcome
+
+on:
+  pull_request:
+    types: [ opened ]
+    branches: [ master ]
 
 jobs:
   welcome:
