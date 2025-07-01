@@ -24,28 +24,28 @@ builds:
       - goos: windows
         goarch: arm64
 
-brews:
-  - name: ci-template
-    repository:
-      owner: hashmap-kz
-      name: homebrew-tap
-      branch: main
-    commit_author:
-      name: alexey.zh
-      email: mailbox.stdio@gmail.com
-    homepage: https://github.com/hashmap-kz/homebrew-tap
-    description: "ci-template"
-    license: "Apache-2.0"
-    install: |
-      bin.install "ci-template"
-    test: |
-      system "#{bin}/ci-template"
+#brews:
+#  - name: ci-template
+#    repository:
+#      owner: hashmap-kz
+#      name: homebrew-tap
+#      branch: main
+#    commit_author:
+#      name: alexey.zh
+#      email: mailbox.stdio@gmail.com
+#    homepage: https://github.com/hashmap-kz/homebrew-tap
+#    description: "ci-template"
+#    license: "Apache-2.0"
+#    install: |
+#      bin.install "ci-template"
+#    test: |
+#      system "#{bin}/ci-template"
 
 checksum:
   name_template: checksums.txt
 
 archives:
-  - builds:
+  - ids:
       - ci-template
     name_template: "{{ .ProjectName }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     wrap_in_directory: "false"
@@ -53,23 +53,23 @@ archives:
     files:
       - LICENSE
 
-nfpms:
-  - file_name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
-    maintainer: alexey.zh
-    homepage: "https://github.com/hashmap-kz/ci-template"
-    description: "ci-template project description"
-    license: "Apache-2.0"
-    formats:
-      - deb
-      - rpm
-      - apk
-    bindir: /usr/bin
-    section: utils
-    contents:
-      - src: ./LICENSE
-        dst: /usr/share/doc/ci-template/copyright
-        file_info:
-          mode: 0644
+#nfpms:
+#  - file_name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+#    maintainer: alexey.zh
+#    homepage: "https://github.com/hashmap-kz/ci-template"
+#    description: "ci-template project description"
+#    license: "Apache-2.0"
+#    formats:
+#      - deb
+#      - rpm
+#      - apk
+#    bindir: /usr/bin
+#    section: utils
+#    contents:
+#      - src: ./LICENSE
+#        dst: /usr/share/doc/ci-template/copyright
+#        file_info:
+#          mode: 0644
 
 changelog:
   sort: asc
