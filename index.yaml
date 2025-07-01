@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  ci-template:
+  - apiVersion: v2
+    appVersion: 1.0.35
+    created: "2025-07-01T15:34:53.837832571Z"
+    description: A Helm chart for Kubernetes
+    digest: 799e378cf157d244062f930064e68969c3e81bab3de3865db694f44c0244440d
+    name: ci-template
+    type: application
+    urls:
+    - ci-template-1.0.35.tgz
+    version: 1.0.35
+generated: "2025-07-01T15:34:53.837837681Z"
