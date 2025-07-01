@@ -61,19 +61,3 @@ Create the name of the service account to use
 {{- end }}
 {{- end }}
 
-
-{{/*
-Renders a value that contains template.
-Usage:
-{{ include "ci-template.tplvalues.render" ( dict "value" .Values.path.to.the.Value "context" $) }}
-*/}}
-{{- define "ci-template.tplvalues.render" -}}
-    {{- if typeIs "string" .value }}
-        {{- tpl .value .context }}
-    {{- else }}
-        {{- tpl (.value | toYaml) .context }}
-    {{- end }}
-{{- end -}}
-
-
-
