@@ -7,16 +7,26 @@ on:
   workflow_dispatch: { }
 
 jobs:
-  chart:
-    runs-on: ubuntu-latest
+  release:
+    # depending on default permission settings for your org (contents being read-only or read-write for workloads), you will have to add permissions
+    # see: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#modifying-the-permissions-for-the-github_token
     permissions:
-      contents: write        # create releases
-      packages: write        # OCI push (optional)
+      contents: write
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Release to gh-pages
-        uses: helm/chart-releaser-action@v1.7.0
-        env:
-          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          packages_with_index: true  # also copy *.tgz to gh-pages
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.7.0
+        with:
+          packages_with_index: 'true'
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
