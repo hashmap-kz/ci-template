@@ -1,42 +1,22 @@
 ---
-name: Helm
+name: Release Helm chart
 
 on:
   push:
-    branches:
-      - master
-    paths:
-      - "charts/**"
-  pull_request:
-    paths:
-      - "charts/**"
-
-env:
-  HELM_VERSION: "v3.10.2"
+    tags: [ 'v*.*.*' ]
+  workflow_dispatch: { }
 
 jobs:
-  release:
+  chart:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
+    permissions:
+      contents: write        # create releases
+      packages: write        # OCI push (optional)
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Configure Git
-        run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-
-      - name: Install Helm
-        uses: azure/setup-helm@v3
-
-      - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.5.0
+      - uses: actions/checkout@v4
+      - name: Release to gh-pages
+        uses: helm/chart-releaser-action@v1.7.0
         env:
-          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          CR_RELEASE_NAME_TEMPLATE: "helm-chart-{{ .Version }}"
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          charts_dir: charts
-          charts_repo_url: https://hashmap-kz.github.io/ci-template
+          packages_with_index: true  # also copy *.tgz to gh-pages
