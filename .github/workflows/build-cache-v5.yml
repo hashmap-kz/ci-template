@@ -90,10 +90,28 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pg_major: [17, 18]
+        include:
+          # PG images (multi-version)
+          - name: pg-primary
+            pg_major: 17
+          - name: pg-primary
+            pg_major: 18
+          - name: pg-standby
+            pg_major: 17
+          - name: pg-standby
+            pg_major: 18
+
+          # Other images (no PG_MAJOR needed)
+          - name: minio
+          - name: minio_mc
+          - name: sshd
 
     env:
+      # Will be "17"/"18" for pg images, and empty for others
       PG_MAJOR: ${{ matrix.pg_major }}
+
+      # Handy suffix for tags / filenames / cache keys, e.g. "-17" or ""
+      TAG_SUFFIX: ${{ matrix.pg_major && format('-{0}', matrix.pg_major) || '' }}
 
     steps:
       - name: Checkout code
@@ -107,13 +125,9 @@ jobs:
           path: ${{ runner.temp }}
           merge-multiple: true
 
-      # docker load --input ${{ runner.temp }}/minio.tar
-      # docker load --input ${{ runner.temp }}/minio_mc.tar
-      # docker load --input ${{ runner.temp }}/sshd.tar
       - name: Load images
         run: |
-          docker load --input ${{ runner.temp }}/pg-primary-${{ matrix.pg_major }}.tar
-          docker load --input ${{ runner.temp }}/pg-standby-${{ matrix.pg_major }}.tar
+          docker load --input ${{ runner.temp }}/${{ matrix.name }}${{ env.TAG_SUFFIX }}.tar
           docker image ls -a
 
       # now all images (pg-*, minio, minio_mc, sshd) are available
