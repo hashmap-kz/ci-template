@@ -1,0 +1,86 @@
+name: Docker Image CI
+
+on:
+  push:
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        pg_major: [17, 18]
+
+    env:
+      PG_MAJOR: ${{ matrix.pg_major }}
+      # All image names in one place
+      IMAGE_LIST: "pg-primary pg-standby minio minio_mc sshd"
+      # Global buildx cache dir shared across all images
+      BUILDX_CACHE: /tmp/.buildx-cache
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Restore Buildx cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.BUILDX_CACHE }}
+          key: buildx-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            buildx-${{ github.ref_name }}-
+            buildx-
+
+      - name: Build all images for PG_MAJOR=${{ env.PG_MAJOR }}
+        env:
+          PG_MAJOR: ${{ env.PG_MAJOR }}
+          IMAGE_LIST: ${{ env.IMAGE_LIST }}
+          BUILDX_CACHE: ${{ env.BUILDX_CACHE }}
+        run: |
+          set -euo pipefail
+
+          # ensure cache dir exists
+          mkdir -p "${BUILDX_CACHE}"
+
+          for img in ${IMAGE_LIST}; do
+            TAG_SUFFIX=""
+            BUILD_ARGS=()
+
+            # pg-* images need PG_MAJOR in tag and as build-arg
+            if [[ "$img" == pg-* ]]; then
+              TAG_SUFFIX="-${PG_MAJOR}"
+              BUILD_ARGS+=(--build-arg "PG_MAJOR=${PG_MAJOR}")
+            fi
+
+            echo "::group::Building ${img}${TAG_SUFFIX}"
+            docker buildx build \
+              --file "test/integration/environ/dockerfiles/${img}/Dockerfile" \
+              --tag "pgrwl/${img}${TAG_SUFFIX}" \
+              "${BUILD_ARGS[@]}" \
+              --cache-from "type=local,src=${BUILDX_CACHE}" \
+              --cache-to "type=local,dest=${BUILDX_CACHE},mode=max" \
+              --load \
+              "test/integration/environ"
+            echo "::endgroup::"
+          done
+
+      - name: Show built images
+        run: docker image ls
+
+      - name: Run integration tests
+        env:
+          PG_MAJOR: ${{ env.PG_MAJOR }}
+        run: |
+          set -euo pipefail
+          echo "Running tests for PG_MAJOR=${PG_MAJOR}"
+          # your real test command here:
+          # ./scripts/run-tests.sh "${PG_MAJOR}"
+          # example:
+          # docker compose -f test/integration/docker-compose.yml up --abort-on-container-exit
