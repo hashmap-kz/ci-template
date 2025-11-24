@@ -4,7 +4,6 @@ name: Docker Image CI
 
 on:
   push:
-  pull_request:
 
 jobs:
   build-calculate-pi:
@@ -12,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -32,11 +31,11 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          platforms: linux/amd64,linux/arm64
+          context: test/integration/environ
+          file: test/integration/environ/dockerfiles/sshd
+          #platforms: linux/amd64,linux/arm64
           #push: ${{ github.ref_type == 'tag' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: pgrwl/sshd
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
