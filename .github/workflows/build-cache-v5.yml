@@ -107,13 +107,13 @@ jobs:
           path: ${{ runner.temp }}
           merge-multiple: true
 
+      # docker load --input ${{ runner.temp }}/minio.tar
+      # docker load --input ${{ runner.temp }}/minio_mc.tar
+      # docker load --input ${{ runner.temp }}/sshd.tar
       - name: Load images
         run: |
           docker load --input ${{ runner.temp }}/pg-primary-${{ matrix.pg_major }}.tar
           docker load --input ${{ runner.temp }}/pg-standby-${{ matrix.pg_major }}.tar
-          docker load --input ${{ runner.temp }}/minio.tar
-          docker load --input ${{ runner.temp }}/minio_mc.tar
-          docker load --input ${{ runner.temp }}/sshd.tar
           docker image ls -a
 
       # now all images (pg-*, minio, minio_mc, sshd) are available
