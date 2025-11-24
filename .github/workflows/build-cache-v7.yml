@@ -161,5 +161,5 @@ jobs:
           echo "Running integration tests against PostgreSQL ${PG_MAJOR}"
           docker images || true
 
-          docker compose -f "${{ env.COMPOSE_FILE }}" up -d --no-build
+          docker compose -f "${{ env.COMPOSE_FILE }}" up -d --no-build --pull=never
           docker ps
