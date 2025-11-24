@@ -81,11 +81,13 @@ jobs:
           for arg in ${{ matrix.image.build_args }}; do
             EXTRA_ARGS="$EXTRA_ARGS --build-arg $arg"
           done
+          echo "Extra build args: $EXTRA_ARGS"
           
           docker build \
             -f "${{ matrix.image.file }}" \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --build-arg "test=0" \
+            $EXTRA_ARGS \
             --label "commit=${{ github.sha }}" \
             --cache-from "${{ matrix.image.tag }}" \
             --tag "${{ matrix.image.tag }}" \
