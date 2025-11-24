@@ -56,7 +56,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: dockerfiles/${{ matrix.name }}/Dockerfile
+          file: test/integration/environ/dockerfiles/${{ matrix.name }}/Dockerfile
           #platforms: linux/amd64,linux/arm64
           #push: ${{ github.ref_type == 'tag' }}
           # Example tag pattern: pgrwl/pg-primary-17, pgrwl/minio
