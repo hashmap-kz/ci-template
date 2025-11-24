@@ -6,31 +6,64 @@ on:
 jobs:
   build_images:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image:
+          - name: pg-primary
+            file: test/integration/environ/dockerfiles/pg-primary/Dockerfile
+            context: test/integration/environ
+            tag: prgwl/pg-primary-17:latest
+          - name: pg-standby
+            file: test/integration/environ/dockerfiles/pg-standby/Dockerfile
+            context: test/integration/environ
+            tag: prgwl/pg-standby-17:latest
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push
+      - name: Build ${{ matrix.image.name }}
         uses: docker/build-push-action@v6
         with:
-          file: test/integration/environ/dockerfiles/pg-primary/Dockerfile
-          context: test/integration/environ
-          tags: prgwl/pg-primary-17:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          file: ${{ matrix.image.file }}
+          context: ${{ matrix.image.context }}
+          tags: ${{ matrix.image.tag }}
+          push: false
+          load: true
+          cache-from: type=gha,scope=${{ matrix.image.name }}
+          cache-to: type=gha,scope=${{ matrix.image.name }},mode=max
 
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    needs: [build_images]
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Load images
-        run: |
-          docker image ls -a
+#jobs:
+#  build_images:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v6
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v3
+#
+#      - name: Build and push
+#        uses: docker/build-push-action@v6
+#        with:
+#          file: test/integration/environ/dockerfiles/pg-primary/Dockerfile
+#          context: test/integration/environ
+#          tags: prgwl/pg-primary-17:latest
+#          cache-from: type=gha
+#          cache-to: type=gha,mode=max
+#
+#  test:
+#    name: Test
+#    runs-on: ubuntu-latest
+#    needs: [build_images]
+#
+#    steps:
+#      - name: Checkout code
+#        uses: actions/checkout@v6
+#
+#      - name: Load images
+#        run: |
+#          docker image ls -a
