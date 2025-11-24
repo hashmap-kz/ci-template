@@ -32,7 +32,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: test/integration/environ
-          file: test/integration/environ/dockerfiles/sshd
+          file: test/integration/environ/dockerfiles/sshd/Dockerfile
           #platforms: linux/amd64,linux/arm64
           #push: ${{ github.ref_type == 'tag' }}
           tags: pgrwl/sshd
