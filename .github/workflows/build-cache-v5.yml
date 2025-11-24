@@ -18,28 +18,124 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-#      - name: Set up Go
-#        uses: actions/setup-go@v6
-#        with:
-#          go-version-file: go.mod
-#
-#      - name: Build binary
-#        run: |
-#          set -euo pipefail
-#          make build
-#          mv bin test/integration/environ
-
-      # (see section 2 – buildx cache)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build images
+      # Example: build pg-primary image with cache
+      - name: Build pg-primary image
         run: |
           set -euo pipefail
-          docker compose -f "${COMPOSE_FILE}" build pg-primary pg-standby sshd minio createbuckets
+          docker buildx build \
+            --file test/integration/environ/dockerfiles/pg-primary/Dockerfile \
+            --build-arg PG_MAJOR="${PG_MAJOR}" \
+            --tag pgrwl/pg-primary-${PG_MAJOR} \
+            --cache-from type=gha,scope=pg-primary-${PG_MAJOR} \
+            --cache-to   type=gha,scope=pg-primary-${PG_MAJOR},mode=max \
+            --load \
+            test/integration/environ
+
+      - name: Build pg-standby image
+        run: |
+          set -euo pipefail
+          docker buildx build \
+            --file test/integration/environ/dockerfiles/pg-standby/Dockerfile \
+            --build-arg PG_MAJOR="${PG_MAJOR}" \
+            --tag pgrwl/pg-standby-${PG_MAJOR} \
+            --cache-from type=gha,scope=pg-standby-${PG_MAJOR} \
+            --cache-to   type=gha,scope=pg-standby-${PG_MAJOR},mode=max \
+            --load \
+            test/integration/environ
+
+      - name: Build sshd image
+        run: |
+          set -euo pipefail
+          docker buildx build \
+            --file test/integration/environ/dockerfiles/sshd/Dockerfile \
+            --tag pgrwl/sshd \
+            --cache-from type=gha,scope=sshd \
+            --cache-to   type=gha,scope=sshd,mode=max \
+            --load \
+            test/integration/environ
+
+      - name: Build minio image
+        run: |
+          set -euo pipefail
+          docker buildx build \
+            --file test/integration/environ/dockerfiles/minio/Dockerfile \
+            --tag pgrwl/minio \
+            --cache-from type=gha,scope=minio \
+            --cache-to   type=gha,scope=minio,mode=max \
+            --load \
+            test/integration/environ
+
+      - name: Build minio-mc image
+        run: |
+          set -euo pipefail
+          docker buildx build \
+            --file test/integration/environ/dockerfiles/minio-mc/Dockerfile \
+            --tag pgrwl/minio-mc \
+            --cache-from type=gha,scope=minio-mc \
+            --cache-to   type=gha,scope=minio-mc,mode=max \
+            --load \
+            test/integration/environ
 
       - name: Run tests
         run: |
           set -euo pipefail
-          docker compose -f "${COMPOSE_FILE}" up -d
+          # IMPORTANT: don't rebuild in compose
+          docker compose -f "${COMPOSE_FILE}" up -d --no-build
           docker ps
+          # ... your exec test script, etc
+
+
+
+
+
+
+
+
+#name: ci
+#
+#on:
+#  push:
+#
+#jobs:
+#  integ:
+#    runs-on: ubuntu-latest
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        pg_major: [17, 18]
+#
+#    env:
+#      PG_MAJOR: ${{ matrix.pg_major }}
+#      COMPOSE_FILE: test/integration/environ/docker-compose.yml
+#
+#    steps:
+#      - uses: actions/checkout@v6
+#
+##      - name: Set up Go
+##        uses: actions/setup-go@v6
+##        with:
+##          go-version-file: go.mod
+##
+##      - name: Build binary
+##        run: |
+##          set -euo pipefail
+##          make build
+##          mv bin test/integration/environ
+#
+#      # (see section 2 – buildx cache)
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v3
+#
+#      - name: Build images
+#        run: |
+#          set -euo pipefail
+#          docker compose -f "${COMPOSE_FILE}" build pg-primary pg-standby sshd minio createbuckets
+#
+#      - name: Run tests
+#        run: |
+#          set -euo pipefail
+#          docker compose -f "${COMPOSE_FILE}" up -d
+#          docker ps
