@@ -1,196 +1,70 @@
-name: ci
+---
+name: Build Cache Testing
 
 on:
   push:
 
 jobs:
-  integ:
-    runs-on: ubuntu-latest
+  build:
+    name: Build lnd
+    runs-on: ubuntu-20.04
+
     strategy:
-      fail-fast: false
       matrix:
-        pg_major: [17, 18]
+        image:
+          - name: pg-primary
+            file: test/integration/environ/dockerfiles/pg-primary/Dockerfile
+            tag: prgwl/pg-primary-17:latest
+            tar: pg-primary-17.tgz
+          - name: pg-standby
+            file: test/integration/environ/dockerfiles/pg-standby/Dockerfile
+            tag: prgwl/pg-standby-17:latest
+            tar: pg-standby-17.tgz
 
     env:
-      PG_MAJOR: ${{ matrix.pg_major }}
-      COMPOSE_FILE: test/integration/environ/docker-compose.yml
+      QEMU_VERSION: v5.1.0
+      DOCKER_BUILDKIT: 1
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v2
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Build
+        run: >
+          docker build --no-cache 
+          -f          "${{ matrix.image.file }}"
+          --build-arg "test=0"
+          --label     "commit=${{ github.sha }}"
+          --tag       "${{ matrix.image.tag }}" 
+          test/integration/environ
 
-      - name: Build all images in parallel with cache
+      - name: Save image to a .tgz file
         run: |
-          set -euo pipefail
+          mkdir -p images/
+          docker save "${{ matrix.image.tag }}" | gzip > "images/${{ matrix.image.tar }}"
 
-          build_pg_primary() {
-            docker buildx build \
-              --file test/integration/environ/dockerfiles/pg-primary/Dockerfile \
-              --build-arg PG_MAJOR="${PG_MAJOR}" \
-              --tag pgrwl/pg-primary-${PG_MAJOR} \
-              --cache-from type=gha,scope=pg-primary-${PG_MAJOR} \
-              --cache-to   type=gha,scope=pg-primary-${PG_MAJOR},mode=max \
-              --load \
-              test/integration/environ
-          }
+      - name: Print sha256sum of built image
+        run: (cd images/; sha256sum *)
 
-          build_pg_standby() {
-            docker buildx build \
-              --file test/integration/environ/dockerfiles/pg-standby/Dockerfile \
-              --build-arg PG_MAJOR="${PG_MAJOR}" \
-              --tag pgrwl/pg-standby-${PG_MAJOR} \
-              --cache-from type=gha,scope=pg-standby-${PG_MAJOR} \
-              --cache-to   type=gha,scope=pg-standby-${PG_MAJOR},mode=max \
-              --load \
-              test/integration/environ
-          }
+      - name: Upload docker image as build artifact
+        uses: actions/upload-artifact@v1.0.0
+        with:
+          name: docker-images
+          path: images/
 
-          build_sshd() {
-            docker buildx build \
-              --file test/integration/environ/dockerfiles/sshd/Dockerfile \
-              --tag pgrwl/sshd \
-              --cache-from type=gha,scope=sshd \
-              --cache-to   type=gha,scope=sshd,mode=max \
-              --load \
-              test/integration/environ
-          }
+  deploy:
+    name: Deploy to Docker Hub & Github Releases.  Only after successful build.
+    runs-on: ubuntu-18.04
+    needs: build
+    env:
+      DOCKER_CLI_EXPERIMENTAL: enabled
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v1.0.0
+        with:
+          name: docker-images
 
-          build_minio() {
-            docker buildx build \
-              --file test/integration/environ/dockerfiles/minio/Dockerfile \
-              --tag pgrwl/minio \
-              --cache-from type=gha,scope=minio \
-              --cache-to   type=gha,scope=minio,mode=max \
-              --load \
-              test/integration/environ
-          }
+      - name: Print sha256sum of downloaded images
+        run: sha256sum docker-images/*
 
-          build_minio_mc() {
-            docker buildx build \
-              --file test/integration/environ/dockerfiles/minio-mc/Dockerfile \
-              --tag pgrwl/minio-mc \
-              --cache-from type=gha,scope=minio-mc \
-              --cache-to   type=gha,scope=minio-mc,mode=max \
-              --load \
-              test/integration/environ
-          }
-
-          # Run builds in parallel
-          pids=()
-
-          build_pg_primary &   pids+=($!)
-          build_pg_standby &   pids+=($!)
-          build_sshd &         pids+=($!)
-          build_minio &        pids+=($!)
-          build_minio_mc &     pids+=($!)
-
-          # Wait for all to finish; if any fails, the step will fail
-          for pid in "${pids[@]}"; do
-            wait "$pid"
-          done
-
-      - name: Run tests
-        run: |
-          set -euo pipefail
-          # don't rebuild in compose
-          docker compose -f "${COMPOSE_FILE}" up -d --no-build
-          docker ps
-          # your test script here
-
-
-
-
-
-
-
-#name: ci
-#
-#on:
-#  push:
-#
-#jobs:
-#  integ:
-#    runs-on: ubuntu-latest
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        pg_major: [17, 18]
-#
-#    env:
-#      PG_MAJOR: ${{ matrix.pg_major }}
-#      COMPOSE_FILE: test/integration/environ/docker-compose.yml
-#
-#    steps:
-#      - uses: actions/checkout@v6
-#
-#      - name: Set up Docker Buildx
-#        uses: docker/setup-buildx-action@v3
-#
-#      # Example: build pg-primary image with cache
-#      - name: Build pg-primary image
-#        run: |
-#          set -euo pipefail
-#          docker buildx build \
-#            --file test/integration/environ/dockerfiles/pg-primary/Dockerfile \
-#            --build-arg PG_MAJOR="${PG_MAJOR}" \
-#            --tag pgrwl/pg-primary-${PG_MAJOR} \
-#            --cache-from type=gha,scope=pg-primary-${PG_MAJOR} \
-#            --cache-to   type=gha,scope=pg-primary-${PG_MAJOR},mode=max \
-#            --load \
-#            test/integration/environ
-#
-#      - name: Build pg-standby image
-#        run: |
-#          set -euo pipefail
-#          docker buildx build \
-#            --file test/integration/environ/dockerfiles/pg-standby/Dockerfile \
-#            --build-arg PG_MAJOR="${PG_MAJOR}" \
-#            --tag pgrwl/pg-standby-${PG_MAJOR} \
-#            --cache-from type=gha,scope=pg-standby-${PG_MAJOR} \
-#            --cache-to   type=gha,scope=pg-standby-${PG_MAJOR},mode=max \
-#            --load \
-#            test/integration/environ
-#
-#      - name: Build sshd image
-#        run: |
-#          set -euo pipefail
-#          docker buildx build \
-#            --file test/integration/environ/dockerfiles/sshd/Dockerfile \
-#            --tag pgrwl/sshd \
-#            --cache-from type=gha,scope=sshd \
-#            --cache-to   type=gha,scope=sshd,mode=max \
-#            --load \
-#            test/integration/environ
-#
-#      - name: Build minio image
-#        run: |
-#          set -euo pipefail
-#          docker buildx build \
-#            --file test/integration/environ/dockerfiles/minio/Dockerfile \
-#            --tag pgrwl/minio \
-#            --cache-from type=gha,scope=minio \
-#            --cache-to   type=gha,scope=minio,mode=max \
-#            --load \
-#            test/integration/environ
-#
-#      - name: Build minio-mc image
-#        run: |
-#          set -euo pipefail
-#          docker buildx build \
-#            --file test/integration/environ/dockerfiles/minio-mc/Dockerfile \
-#            --tag pgrwl/minio-mc \
-#            --cache-from type=gha,scope=minio-mc \
-#            --cache-to   type=gha,scope=minio-mc,mode=max \
-#            --load \
-#            test/integration/environ
-#
-#      - name: Run tests
-#        run: |
-#          set -euo pipefail
-#          # IMPORTANT: don't rebuild in compose
-#          docker compose -f "${COMPOSE_FILE}" up -d --no-build
-#          docker ps
-#          # ... your exec test script, etc
-#
+      - name: Load images locally
+        run: find docker-images  -exec docker load -i "{}" \;
