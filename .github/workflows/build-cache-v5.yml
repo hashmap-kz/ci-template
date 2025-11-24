@@ -48,7 +48,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.${{ matrix.name }}${{ env.TAG_SUFFIX }}
-          key: ${{ matrix.name }}${{ env.TAG_SUFFIX }}
+          key: ${{ matrix.name }}${{ env.TAG_SUFFIX }}-${{ github.sha }}
           restore-keys: |
             ${{ matrix.name }}${{ env.TAG_SUFFIX }}-
 
@@ -64,13 +64,13 @@ jobs:
             pgrwl/${{ matrix.name }}${{ env.TAG_SUFFIX }}
           build-args: |
             PG_MAJOR=${{ env.PG_MAJOR }}
+          # cache between pipelines
           cache-from: type=local,src=/tmp/.${{ matrix.name }}${{ env.TAG_SUFFIX }}
           cache-to: type=local,dest=/tmp/.new-${{ matrix.name }}${{ env.TAG_SUFFIX }},mode=max
-          # Export for tests (only needed for pg images, but harmless for others)
+          # share between jobs (https://docs.docker.com/build/ci/github-actions/share-image-jobs/)
           outputs: type=docker,dest=${{ runner.temp }}/${{ matrix.name }}${{ env.TAG_SUFFIX }}.tar
 
-      # Only upload artifacts for pg-* images (used by tests)
-      - name: Upload pg image artifact
+      - name: Upload image artifacts
         if: startsWith(matrix.name, 'pg-')
         uses: actions/upload-artifact@v4
         with:
@@ -90,34 +90,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # PG images (multi-version)
-          - name: pg-primary
-            pg_major: 17
-          - name: pg-primary
-            pg_major: 18
-          - name: pg-standby
-            pg_major: 17
-          - name: pg-standby
-            pg_major: 18
-
-          # Other images (no PG_MAJOR needed)
-          - name: minio
-          - name: minio_mc
-          - name: sshd
+        pg_major: [17, 18]
 
     env:
-      # Will be "17"/"18" for pg images, and empty for others
       PG_MAJOR: ${{ matrix.pg_major }}
-
-      # Handy suffix for tags / filenames / cache keys, e.g. "-17" or ""
-      TAG_SUFFIX: ${{ matrix.pg_major && format('-{0}', matrix.pg_major) || '' }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      # Download both pg-primary and pg-standby artifacts for this PG_MAJOR
       # https://docs.docker.com/build/ci/github-actions/share-image-jobs/
       - name: Download pg images
         uses: actions/download-artifact@v4
@@ -127,9 +108,6 @@ jobs:
 
       - name: Load images
         run: |
-          docker load --input ${{ runner.temp }}/${{ matrix.name }}${{ env.TAG_SUFFIX }}.tar
+          docker load --input ${{ runner.temp }}/pg-primary-${{ matrix.pg_major }}.tar
+          docker load --input ${{ runner.temp }}/pg-standby-${{ matrix.pg_major }}.tar
           docker image ls -a
-
-      # now all images (pg-*, minio, minio_mc, sshd) are available
-      # - name: Run integration tests
-      #   run: ./scripts/run-tests.sh
