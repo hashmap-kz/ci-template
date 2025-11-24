@@ -64,3 +64,43 @@ jobs:
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+# INPUTS:
+#
+# https://github.com/docker/build-push-action/blob/master/src/context.ts
+#
+# export interface Inputs {
+#   'add-hosts': string[];
+#   allow: string[];
+#   annotations: string[];
+#   attests: string[];
+#   'build-args': string[];
+#   'build-contexts': string[];
+#   builder: string;
+#   'cache-from': string[];
+#   'cache-to': string[];
+#   call: string;
+#   'cgroup-parent': string;
+#   context: string;
+#   file: string;
+#   labels: string[];
+#   load: boolean;
+#   network: string;
+#   'no-cache': boolean;
+#   'no-cache-filters': string[];
+#   outputs: string[];
+#   platforms: string[];
+#   provenance: string;
+#   pull: boolean;
+#   push: boolean;
+#   sbom: string;
+#   secrets: string[];
+#   'secret-envs': string[];
+#   'secret-files': string[];
+#   'shm-size': string;
+#   ssh: string[];
+#   tags: string[];
+#   target: string;
+#   ulimit: string[];
+#   'github-token': string;
+# }
