@@ -99,24 +99,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      # # Download all image artifacts (pg-*, minio, minio_mc, sshd)
-      # - name: Download all images
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     path: ${{ runner.temp }}
-      #     merge-multiple: true
+      # Download both pg-primary and pg-standby artifacts for this PG_MAJOR
+      # https://docs.docker.com/build/ci/github-actions/share-image-jobs/
+      - name: Download pg images
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pg-*-${{ matrix.pg_major }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
 
-      - name: Load all images
-        env:
-          TEMP_DIR: ${{ runner.temp }}
+      - name: Load images
         run: |
-          ls -lah "${TEMP_DIR}"
-          set -euo pipefail
-          for img in "${TEMP_DIR}"/*.tar; do
-            echo "Loading image: $img"
-            docker load --input "$img"
-          done
-
+          docker load --input ${{ runner.temp }}/pg-primary-${{ matrix.pg_major }}.tar
+          docker load --input ${{ runner.temp }}/pg-standby-${{ matrix.pg_major }}.tar
           docker image ls -a
 
       # now all images (pg-*, minio, minio_mc, sshd) are available
