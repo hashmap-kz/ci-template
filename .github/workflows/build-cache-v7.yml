@@ -11,14 +11,27 @@ jobs:
     strategy:
       matrix:
         image:
-          - name: pg-primary
+          #17
+          - name: pg-primary-17
             file: test/integration/environ/dockerfiles/pg-primary/Dockerfile
             tag: prgwl/pg-primary-17:latest
             tar: pg-primary-17.tgz
-          - name: pg-standby
+          - name: pg-standby-17
             file: test/integration/environ/dockerfiles/pg-standby/Dockerfile
             tag: prgwl/pg-standby-17:latest
             tar: pg-standby-17.tgz
+          #18
+          - name: pg-standby-18
+            file: test/integration/environ/dockerfiles/pg-standby/Dockerfile
+            tag: prgwl/pg-standby-18:latest
+            tar: pg-standby-18.tgz
+            build_args: "PG_MAJOR=18"
+          - name: pg-primary-18
+            file: test/integration/environ/dockerfiles/pg-primary/Dockerfile
+            tag: prgwl/pg-primary-18:latest
+            tar: pg-primary-18.tgz
+            build_args: "PG_MAJOR=18"
+          #etc
           - name: minio
             file: test/integration/environ/dockerfiles/minio/Dockerfile
             tag: prgwl/minio:latest
@@ -64,6 +77,11 @@ jobs:
       # 3) Build using cache-from
       - name: Build
         run: |
+          EXTRA_ARGS=""
+          for arg in ${{ matrix.image.build_args }}; do
+            EXTRA_ARGS="$EXTRA_ARGS --build-arg $arg"
+          done
+          
           docker build \
             -f "${{ matrix.image.file }}" \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
