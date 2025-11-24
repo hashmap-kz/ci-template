@@ -6,8 +6,16 @@ on:
   push:
 
 jobs:
-  build-calculate-pi:
+  build-images:
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        pg_major: [17, 18]
+
+    env:
+      PG_MAJOR: ${{ matrix.pg_major }}
 
     steps:
       - name: Checkout repository
@@ -28,7 +36,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      - name: Build and push image
+      - name: Build 'sshd' image
         uses: docker/build-push-action@v6
         with:
           context: test/integration/environ
@@ -36,6 +44,19 @@ jobs:
           #platforms: linux/amd64,linux/arm64
           #push: ${{ github.ref_type == 'tag' }}
           tags: pgrwl/sshd
+          build-args: PG_MAJOR=${{ matrix.pg_major }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+      - name: Build 'pg-standby' image
+        uses: docker/build-push-action@v6
+        with:
+          context: test/integration/environ
+          file: test/integration/environ/dockerfiles/pg-standby/Dockerfile
+          #platforms: linux/amd64,linux/arm64
+          #push: ${{ github.ref_type == 'tag' }}
+          tags: pgrwl/pg-standby
+          build-args: PG_MAJOR=${{ matrix.pg_major }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
