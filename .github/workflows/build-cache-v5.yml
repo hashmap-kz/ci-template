@@ -99,12 +99,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      # Download all image artifacts (pg-*, minio, minio_mc, sshd)
-      - name: Download all images
-        uses: actions/download-artifact@v4
-        with:
-          path: ${{ runner.temp }}
-          merge-multiple: true
+      # # Download all image artifacts (pg-*, minio, minio_mc, sshd)
+      # - name: Download all images
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     path: ${{ runner.temp }}
+      #     merge-multiple: true
 
       - name: Load all images
         env:
