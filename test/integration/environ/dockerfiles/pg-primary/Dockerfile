@@ -1,10 +1,3 @@
-# Separate stage to cache mc binary download
-FROM alpine:3.22.2 AS mc-downloader
-
-ARG MC_VERSION=mc.RELEASE.2025-08-13T08-35-41Z
-RUN wget -q https://dl.min.io/client/mc/release/linux-amd64/${MC_VERSION} \
-    -O /minio-mc && chmod +x /minio-mc
-
 FROM debian:bookworm-20251117-slim
 
 # Version argument
@@ -17,8 +10,6 @@ RUN echo "export PG_MAJOR=${PG_MAJOR}" > /etc/profile.d/pgenvs.sh; \
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Aqtau
 ENV PATH="/usr/lib/postgresql/${PG_MAJOR}/bin:${PATH}"
-
-COPY --from=mc-downloader /minio-mc /usr/local/bin/minio-mc
 
 ######################################################################
 # Install PostgreSQL and other utilities
@@ -54,7 +45,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 COPY files/postgres/ /etc/postgresql/${PG_MAJOR}/main
 COPY files/dotfiles/ /var/lib/postgresql
 COPY files/dotfiles/ /root
-COPY bin/ /usr/local/bin
 COPY files/entrypoint.sh /entrypoint.sh
 
 ######################################################################

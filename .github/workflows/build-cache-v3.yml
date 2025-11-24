@@ -28,25 +28,34 @@ jobs:
         id: buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Cache Docker layers
+      - name: Cache 'pg-primary' Docker layers
         uses: actions/cache@v4
         with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          path: /tmp/.buildx-cache-pg-primary-${{ matrix.pg_major }}
+          key: ${{ runner.os }}-buildx-pg-primary-${{ matrix.pg_major }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-
+            ${{ runner.os }}-buildx-pg-primary-${{ matrix.pg_major }}-
 
-      - name: Build 'sshd' image
+      - name: Cache 'pg-standby' Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache-pg-standby-${{ matrix.pg_major }}
+          key: ${{ runner.os }}-buildx-pg-standby-${{ matrix.pg_major }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-pg-standby-${{ matrix.pg_major }}-
+
+      - name: Build 'pg-primary' image
         uses: docker/build-push-action@v6
         with:
           context: test/integration/environ
-          file: test/integration/environ/dockerfiles/sshd/Dockerfile
+          file: test/integration/environ/dockerfiles/pg-primary/Dockerfile
           #platforms: linux/amd64,linux/arm64
           #push: ${{ github.ref_type == 'tag' }}
-          tags: pgrwl/sshd
-          build-args: PG_MAJOR=${{ matrix.pg_major }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          tags: pgrwl/pg-primary-${{ matrix.pg_major }}
+          build-args: |
+            PG_MAJOR=${{ matrix.pg_major }}
+          cache-from: type=local,src=/tmp/.buildx-cache-pg-primary-${{ matrix.pg_major }}
+          cache-to: type=local,dest=/tmp/.buildx-cache-new-pg-primary-${{ matrix.pg_major }},mode=max
 
       - name: Build 'pg-standby' image
         uses: docker/build-push-action@v6
@@ -55,15 +64,21 @@ jobs:
           file: test/integration/environ/dockerfiles/pg-standby/Dockerfile
           #platforms: linux/amd64,linux/arm64
           #push: ${{ github.ref_type == 'tag' }}
-          tags: pgrwl/pg-standby
-          build-args: PG_MAJOR=${{ matrix.pg_major }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          tags: pgrwl/pg-standby-${{ matrix.pg_major }}
+          build-args: |
+            PG_MAJOR=${{ matrix.pg_major }}
+          cache-from: type=local,src=/tmp/.buildx-cache-pg-standby-${{ matrix.pg_major }}
+          cache-to: type=local,dest=/tmp/.buildx-cache-new-pg-standby-${{ matrix.pg_major }},mode=max
 
-      - name: Move cache
+      - name: Move cache 'pg-primary'
         run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          rm -rf /tmp/.buildx-cache-pg-primary-${{ matrix.pg_major }}
+          mv /tmp/.buildx-cache-new-pg-primary-${{ matrix.pg_major }} /tmp/.buildx-cache-pg-primary-${{ matrix.pg_major }}
+
+      - name: Move cache 'pg-standby'
+        run: |
+          rm -rf /tmp/.buildx-cache-pg-standby-${{ matrix.pg_major }}
+          mv /tmp/.buildx-cache-new-pg-standby-${{ matrix.pg_major }} /tmp/.buildx-cache-pg-standby-${{ matrix.pg_major }}
 
 # INPUTS:
 #
