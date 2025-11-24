@@ -7,15 +7,18 @@ jobs:
   build_images:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          tags: user/app:latest
           file: test/integration/environ/dockerfiles/pg-primary/Dockerfile
           context: test/integration/environ
+          tags: prgwl/pg-primary-17:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
