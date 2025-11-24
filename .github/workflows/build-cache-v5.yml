@@ -48,7 +48,7 @@ jobs:
       - name: Upload docker image as build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: docker-images
+          name: docker-images-${{ matrix.image.name }}
           path: images/
 
   deploy:
@@ -57,14 +57,19 @@ jobs:
     needs: build
     env:
       DOCKER_CLI_EXPERIMENTAL: enabled
+
     steps:
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: docker-images
+          pattern: docker-images-*
+          path: docker-images
+          merge-multiple: true
 
       - name: Print sha256sum of downloaded images
         run: sha256sum docker-images/*
 
       - name: Load images locally
-        run: find docker-images  -exec docker load -i "{}" \;
+        run: |
+          find docker-images -type f -name '*.tgz' -exec docker load -i "{}" \;
+
