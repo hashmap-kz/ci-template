@@ -17,39 +17,39 @@ jobs:
           #17
           - name: pg-primary-17
             file: test/integration/environ/dockerfiles/pg-primary/Dockerfile
-            tag: prgwl/pg-primary-17:latest
+            tag: pgrwl/pg-primary-17:latest
             tar: pg-primary-17.tgz
             build_args: ""
           - name: pg-standby-17
             file: test/integration/environ/dockerfiles/pg-standby/Dockerfile
-            tag: prgwl/pg-standby-17:latest
+            tag: pgrwl/pg-standby-17:latest
             tar: pg-standby-17.tgz
             build_args: ""
           #18
           - name: pg-standby-18
             file: test/integration/environ/dockerfiles/pg-standby/Dockerfile
-            tag: prgwl/pg-standby-18:latest
+            tag: pgrwl/pg-standby-18:latest
             tar: pg-standby-18.tgz
             build_args: "PG_MAJOR=18"
           - name: pg-primary-18
             file: test/integration/environ/dockerfiles/pg-primary/Dockerfile
-            tag: prgwl/pg-primary-18:latest
+            tag: pgrwl/pg-primary-18:latest
             tar: pg-primary-18.tgz
             build_args: "PG_MAJOR=18"
           #etc
           - name: minio
             file: test/integration/environ/dockerfiles/minio/Dockerfile
-            tag: prgwl/minio:latest
+            tag: pgrwl/minio:latest
             tar: minio.tgz
             build_args: ""
           - name: minio-mc
             file: test/integration/environ/dockerfiles/minio-mc/Dockerfile
-            tag: prgwl/minio-mc:latest
+            tag: pgrwl/minio-mc:latest
             tar: minio-mc.tgz
             build_args: ""
           - name: sshd
             file: test/integration/environ/dockerfiles/sshd/Dockerfile
-            tag: prgwl/sshd:latest
+            tag: pgrwl/sshd:latest
             tar: sshd.tgz
             build_args: ""
 
