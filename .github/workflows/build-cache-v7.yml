@@ -165,42 +165,42 @@ jobs:
 #             docker load -i "{}"
 #           '
 
-      # simple
-      - name: Load images locally
-        run: |
-          find docker-images -type f -name '*.tgz' -exec docker load -i "{}" \;
-
-# concurrently, with filters
+# simple
 #      - name: Load images locally
 #        run: |
-#          set -euo pipefail
-#
-#          LOAD_JOBS=3
-#
-#          # Images that depend on PG_MAJOR
-#          per_pg=(
-#            "pg-primary-${PG_MAJOR}.tgz"
-#            "pg-standby-${PG_MAJOR}.tgz"
-#          )
-#
-#          # Shared images
-#          shared=(
-#            "minio.tgz"
-#            "minio-mc.tgz"
-#            "sshd.tgz"
-#          )
-#
-#          # Build the list of existing files and feed into xargs
-#          {
-#            for f in "${per_pg[@]}" "${shared[@]}"; do
-#              path="docker-images/$f"
-#              if [ -f "$path" ]; then
-#                printf '%s\0' "$path"
-#              else
-#                echo "Skipping missing $path" >&2
-#              fi
-#            done
-#          } | xargs -0 -n1 -P "${LOAD_JOBS}" docker load -i
+#          find docker-images -type f -name '*.tgz' -exec docker load -i "{}" \;
+
+      # concurrently, with filters
+      - name: Load images locally
+        run: |
+          set -euo pipefail
+
+          LOAD_JOBS=3
+
+          # Images that depend on PG_MAJOR
+          per_pg=(
+            "pg-primary-${PG_MAJOR}.tgz"
+            "pg-standby-${PG_MAJOR}.tgz"
+          )
+
+          # Shared images
+          shared=(
+            "minio.tgz"
+            "minio-mc.tgz"
+            "sshd.tgz"
+          )
+
+          # Build the list of existing files and feed into xargs
+          {
+            for f in "${per_pg[@]}" "${shared[@]}"; do
+              path="docker-images/$f"
+              if [ -f "$path" ]; then
+                printf '%s\0' "$path"
+              else
+                echo "Skipping missing $path" >&2
+              fi
+            done
+          } | xargs -0 -n1 -P "${LOAD_JOBS}" docker load -i
 
       - name: Run tests
         run: |
