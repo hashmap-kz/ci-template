@@ -40,7 +40,7 @@ jobs:
             ${{ env.CACHE_FILE_DOCKER_SSHD }}
             ${{ env.CACHE_FILE_DOCKER_MINIO }}
             ${{ env.CACHE_FILE_DOCKER_MINIO_MC }}
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          key: buildx-a8e6319a-8b6d-46d8-aa3a-c5814a4dc166
 
       - name: Load images from cache (if present)
         if: steps.cache-images.outputs.cache-hit == 'true'
@@ -109,7 +109,7 @@ jobs:
             ${{ env.CACHE_FILE_DOCKER_SSHD }}
             ${{ env.CACHE_FILE_DOCKER_MINIO }}
             ${{ env.CACHE_FILE_DOCKER_MINIO_MC }}
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          key: buildx-a8e6319a-8b6d-46d8-aa3a-c5814a4dc166
 
       - name: Fail if cache is missing
         if: steps.cache-images.outputs.cache-hit != 'true'
