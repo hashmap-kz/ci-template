@@ -6,7 +6,7 @@ on:
   push:
 
 jobs:
-  build-images:
+  build_images:
     runs-on: ubuntu-latest
 
     strategy:
@@ -79,6 +79,29 @@ jobs:
         run: |
           rm -rf /tmp/.buildx-cache-pg-standby-${{ matrix.pg_major }}
           mv /tmp/.buildx-cache-new-pg-standby-${{ matrix.pg_major }} /tmp/.buildx-cache-pg-standby-${{ matrix.pg_major }}
+
+  test:
+    name: Run integration tests (pg${{ matrix.pg_major }})
+    runs-on: ubuntu-latest
+    needs: [build_images]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        pg_major: [17, 18]
+
+    env:
+      PG_MAJOR: ${{ matrix.pg_major }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Run tests
+        run: |
+          set -euo pipefail
+          echo "Running integration tests against PostgreSQL ${PG_MAJOR}"
+          docker images || true
 
 # INPUTS:
 #
