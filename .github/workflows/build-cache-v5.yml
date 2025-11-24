@@ -103,7 +103,6 @@ jobs:
       - name: Download all images
         uses: actions/download-artifact@v4
         with:
-          pattern: "*.tar"
           path: ${{ runner.temp }}
           merge-multiple: true
 
@@ -111,6 +110,7 @@ jobs:
         env:
           TEMP_DIR: ${{ runner.temp }}
         run: |
+          ls -lah "${TEMP_DIR}"
           set -euo pipefail
           for img in "${TEMP_DIR}"/*.tar; do
             echo "Loading image: $img"
