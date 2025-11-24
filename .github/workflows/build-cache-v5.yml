@@ -103,6 +103,7 @@ jobs:
       - name: Download all images
         uses: actions/download-artifact@v4
         with:
+          pattern: "*.tar"
           path: ${{ runner.temp }}
           merge-multiple: true
 
