@@ -154,35 +154,54 @@ jobs:
         run: |
           set -euo pipefail
           
+          # max concurrent docker load jobs
           LOAD_JOBS=3
           
-          # List of image tars that depend on PG_MAJOR
-          per_pg=(
-            "pg-primary-${PG_MAJOR}.tgz"
-            "pg-standby-${PG_MAJOR}.tgz"
-          )
-          
-          # Shared images, same for all PG_MAJORs
-          shared=(
-            "minio.tgz"
-            "minio-mc.tgz"
-            "sshd.tgz"
-          )
-          
-          # Build full paths and filter out missing ones
-          {
-            for f in "${per_pg[@]}" "${shared[@]}"; do
-              path="docker-images/$f"
-              if [ -f "$path" ]; then
-                printf '%s\n' "$path"
-              else
-                echo "Skipping missing $path" >&2
-              fi
-            done
-          } | xargs -n1 -P "${LOAD_JOBS}" -I{} sh -c '
-                echo "Loading {}"
-                docker load -i "{}"
-              '
+          find docker-images -type f -name '*.tgz' -print0 \
+          | xargs -0 -n1 -P "${LOAD_JOBS}" -I{} sh -c '
+             echo "Loading {}"
+             docker load -i "{}"
+           '
+
+# simple
+#      - name: Load images locally
+#        run: |
+#          find docker-images -type f -name '*.tgz' -exec docker load -i "{}" \;
+
+# concurrently, with filters
+#      - name: Load images locally
+#        run: |
+#          set -euo pipefail
+#
+#          LOAD_JOBS=3
+#
+#          # List of image tars that depend on PG_MAJOR
+#          per_pg=(
+#            "pg-primary-${PG_MAJOR}.tgz"
+#            "pg-standby-${PG_MAJOR}.tgz"
+#          )
+#
+#          # Shared images, same for all PG_MAJORs
+#          shared=(
+#            "minio.tgz"
+#            "minio-mc.tgz"
+#            "sshd.tgz"
+#          )
+#
+#          # Build full paths and filter out missing ones
+#          {
+#            for f in "${per_pg[@]}" "${shared[@]}"; do
+#              path="docker-images/$f"
+#              if [ -f "$path" ]; then
+#                printf '%s\n' "$path"
+#              else
+#                echo "Skipping missing $path" >&2
+#              fi
+#            done
+#          } | xargs -n1 -P "${LOAD_JOBS}" -I{} sh -c '
+#                echo "Loading {}"
+#                docker load -i "{}"
+#              '
 
       - name: Run tests
         run: |
