@@ -42,12 +42,13 @@ jobs:
             ${{ env.CACHE_FILE_DOCKER_MINIO_MC }}
           key: buildx-a8e6319a-8b6d-46d8-aa3a-c5814a4dc166
 
-      - name: Load images from cache (if present)
-        if: steps.cache-images.outputs.cache-hit == 'true'
+      - name: Build Docker images and cache them
+        if: steps.cache-images.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
+          mkdir -p "${{ env.CACHE_FOLDER }}"
 
-          echo "Restored cached image archives, loading into Docker..."
+          echo "======= Restored cached image archives"
           ls -lah "${{ env.CACHE_FOLDER }}" || true
 
           gunzip -c "${{ env.CACHE_FILE_DOCKER_PG_PRIMARY }}" | docker load || true
@@ -56,21 +57,11 @@ jobs:
           gunzip -c "${{ env.CACHE_FILE_DOCKER_MINIO }}" | docker load || true
           gunzip -c "${{ env.CACHE_FILE_DOCKER_MINIO_MC }}" | docker load || true
 
-          echo "Images after load (if any):"
-          docker images || true
-
-      - name: Build Docker images and cache them
-        if: steps.cache-images.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-
-          echo "Building images for PG_MAJOR=${PG_MAJOR} from scratch (no cache hit)..."
+          echo "Building images for PG_MAJOR=${PG_MAJOR}"
           docker compose -f "${{ env.COMPOSE_FILE }}" build pg-primary pg-standby sshd minio createbuckets
 
-          echo "=== Images after build ==="
+          echo "======= Images after build"
           docker images || true
-
-          mkdir -p "${{ env.CACHE_FOLDER }}"
 
           # image names must match docker-compose.yml
           docker save "pgrwl/pg-primary-${PG_MAJOR}" | gzip -c > "${{ env.CACHE_FILE_DOCKER_PG_PRIMARY }}"
@@ -79,7 +70,7 @@ jobs:
           docker save "pgrwl/minio" | gzip -c > "${{ env.CACHE_FILE_DOCKER_MINIO }}"
           docker save "pgrwl/minio-mc" | gzip -c > "${{ env.CACHE_FILE_DOCKER_MINIO_MC }}"
 
-          echo "=== Cached archives ==="
+          echo "======= Cached archives"
           ls -lah "${{ env.CACHE_FOLDER }}"
 
   test:
