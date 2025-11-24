@@ -1,0 +1,106 @@
+name: Build Cache Testing
+
+on:
+  push:
+
+jobs:
+  build:
+    name: Build lnd
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        image:
+          - name: pg-primary
+            file: test/integration/environ/dockerfiles/pg-primary/Dockerfile
+            tag: prgwl/pg-primary-17:latest
+            tar: pg-primary-17.tgz
+          - name: pg-standby
+            file: test/integration/environ/dockerfiles/pg-standby/Dockerfile
+            tag: prgwl/pg-standby-17:latest
+            tar: pg-standby-17.tgz
+
+    env:
+      QEMU_VERSION: v5.1.0
+      DOCKER_BUILDKIT: 1
+
+    steps:
+      - uses: actions/checkout@v6
+
+      # 1) Restore cached image tar for this matrix image
+      - name: Restore Docker image cache
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: docker-cache
+          # cache key per image & Dockerfile content
+          key: docker-image-${{ matrix.image.name }}-${{ hashFiles(format('{0}', matrix.image.file)) }}
+          restore-keys: |
+            docker-image-${{ matrix.image.name }}-
+
+      # 2) Load cached image into Docker (if it exists)
+      - name: Load cached image if present
+        run: |
+          mkdir -p docker-cache
+          if [ -f "docker-cache/${{ matrix.image.tar }}" ]; then
+            echo "Found cached image, loading..."
+            gunzip -c "docker-cache/${{ matrix.image.tar }}"| docker load
+          else
+            echo "No cached image found for ${{ matrix.image.name }}"
+          fi
+
+      # 3) Build using cache-from
+      - name: Build
+        run: |
+          docker build \
+            -f "${{ matrix.image.file }}" \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --build-arg "test=0" \
+            --label "commit=${{ github.sha }}" \
+            --cache-from "${{ matrix.image.tag }}" \
+            --tag "${{ matrix.image.tag }}" \
+            test/integration/environ
+
+      # 4) Save built image to .tgz for artifacts
+      - name: Save image to a .tgz file
+        run: |
+          mkdir -p images/
+          docker save "${{ matrix.image.tag }}" | gzip > "images/${{ matrix.image.tar }}"
+
+      # 5) Copy tar into cache dir so actions/cache captures it
+      - name: Update image cache
+        run: |
+          mkdir -p docker-cache
+          cp "images/${{ matrix.image.tar }}" "docker-cache/${{ matrix.image.tar }}"
+
+      - name: Print sha256sum of built image
+        run: (cd images/; sha256sum *)
+
+      # 6) Upload per-matrix artifact as before
+      - name: Upload docker image as build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-images-${{ matrix.image.name }}
+          path: images/
+
+  deploy:
+    name: Deploy to Docker Hub & Github Releases.  Only after successful build.
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      DOCKER_CLI_EXPERIMENTAL: enabled
+
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: docker-images-*
+          path: docker-images
+          merge-multiple: true
+
+      - name: Print sha256sum of downloaded images
+        run: sha256sum docker-images/*
+
+      - name: Load images locally
+        run: |
+          find docker-images -type f -name '*.tgz' -exec docker load -i "{}" \;
