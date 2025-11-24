@@ -3,6 +3,9 @@ name: Build Cache Testing
 on:
   push:
 
+env:
+  COMPOSE_FILE: "test/integration/environ/docker-compose.yml"
+
 jobs:
   build:
     name: build (${{ matrix.image.name }})
@@ -111,8 +114,8 @@ jobs:
           rm -f "docker-cache/${{ matrix.image.tar }}" || true
           cp "images/${{ matrix.image.tar }}" "docker-cache/${{ matrix.image.tar }}"
 
-      - name: Print sha256sum of built image
-        run: (cd images/; sha256sum *)
+#      - name: Print sha256sum of built image
+#        run: (cd images/; sha256sum *)
 
       # 6) Upload per-matrix artifact as before
       - name: Upload docker image as build artifact
@@ -121,14 +124,22 @@ jobs:
           name: docker-images-${{ matrix.image.name }}
           path: images/
 
-  deploy:
-    name: Deploy to Docker Hub & Github Releases.  Only after successful build.
+  test:
+    name: Run integration tests (pg${{ matrix.pg_major }})
     runs-on: ubuntu-latest
     needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        pg_major: [ 17, 18 ]
     env:
       DOCKER_CLI_EXPERIMENTAL: enabled
+      PG_MAJOR: ${{ matrix.pg_major }}
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
@@ -136,9 +147,19 @@ jobs:
           path: docker-images
           merge-multiple: true
 
-      - name: Print sha256sum of downloaded images
-        run: sha256sum docker-images/*
+#      - name: Print sha256sum of downloaded images
+#        run: sha256sum docker-images/*
 
       - name: Load images locally
         run: |
           find docker-images -type f -name '*.tgz' -exec docker load -i "{}" \;
+
+      - name: Run tests
+        run: |
+          set -euo pipefail
+
+          echo "Running integration tests against PostgreSQL ${PG_MAJOR}"
+          docker images || true
+
+          docker compose -f "${{ env.COMPOSE_FILE }}" up -d
+          docker ps
