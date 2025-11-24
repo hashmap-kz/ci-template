@@ -43,7 +43,8 @@ jobs:
           key: buildx-a8e6319a-8b6d-46d8-aa3a-c5814a4dc166
 
       - name: Build Docker images and cache them
-        if: steps.cache-images.outputs.cache-hit != 'true'
+        # NOTE: rebuild always
+        # if: steps.cache-images.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
           mkdir -p "${{ env.CACHE_FOLDER }}"
@@ -120,6 +121,15 @@ jobs:
           gunzip -c "${{ env.CACHE_FILE_DOCKER_MINIO }}" | docker load
           gunzip -c "${{ env.CACHE_FILE_DOCKER_MINIO_MC }}" | docker load
 
-          echo "=== Images after load ==="
+          echo "======= Images after load"
           docker images || true
 
+      - name: Run tests
+        run: |
+          set -euo pipefail
+
+          echo "Running integration tests against PostgreSQL ${PG_MAJOR}"
+          docker images || true
+
+          docker compose -f "${{ env.COMPOSE_FILE }}" up -d
+          docker ps
