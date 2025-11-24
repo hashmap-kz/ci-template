@@ -78,12 +78,14 @@ jobs:
       - name: Upload artifact 'pg-primary'
         uses: actions/upload-artifact@v4
         with:
+          name: pg-primary-${{ matrix.pg_major }}
           path: ${{ runner.temp }}/pg-primary-${{ matrix.pg_major }}.tar
 
       # https://docs.docker.com/build/ci/github-actions/share-image-jobs/
       - name: Upload artifact 'pg-standby'
         uses: actions/upload-artifact@v4
         with:
+          name: pg-standby-${{ matrix.pg_major }}
           path: ${{ runner.temp }}/pg-standby-${{ matrix.pg_major }}.tar
 
       - name: Move cache 'pg-primary'
@@ -117,11 +119,20 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          path: ${{ runner.temp }}
+          name: pg-standby-${{ matrix.pg_major }}
+          path: ${{ runner.temp }}/pg-standby-${{ matrix.pg_major }}.tar
+
+      # https://docs.docker.com/build/ci/github-actions/share-image-jobs/
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pg-primary-${{ matrix.pg_major }}
+          path: ${{ runner.temp }}/pg-primary-${{ matrix.pg_major }}.tar
+
       - name: Load image
         run: |
-          docker load --input pg-primary-${{ matrix.pg_major }}.tar
-          docker load --input pg-standby-${{ matrix.pg_major }}.tar
+          docker load --input ${{ runner.temp }}/pg-primary-${{ matrix.pg_major }}.tar
+          docker load --input ${{ runner.temp }}/pg-standby-${{ matrix.pg_major }}.tar
           docker image ls -a
 
 # INPUTS:
