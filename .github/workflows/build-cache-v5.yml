@@ -12,11 +12,9 @@ jobs:
         image:
           - name: pg-primary
             file: test/integration/environ/dockerfiles/pg-primary/Dockerfile
-            context: test/integration/environ
             tag: prgwl/pg-primary-17:latest
           - name: pg-standby
             file: test/integration/environ/dockerfiles/pg-standby/Dockerfile
-            context: test/integration/environ
             tag: prgwl/pg-standby-17:latest
 
     steps:
@@ -29,12 +27,12 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           file: ${{ matrix.image.file }}
-          context: ${{ matrix.image.context }}
+          context: test/integration/environ
           tags: ${{ matrix.image.tag }}
           push: false
           load: true
-          cache-from: type=gha,scope=${{ matrix.image.name }}
-          cache-to: type=gha,scope=${{ matrix.image.name }},mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
 
 #jobs:
