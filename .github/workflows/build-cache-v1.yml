@@ -28,7 +28,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          push: true
+          #push: true
           tags: user/app:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
