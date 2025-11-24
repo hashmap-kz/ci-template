@@ -58,10 +58,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: docker-cache
-          # bump cache version to avoid old, non-inline-cache images
-          key: v2-docker-image-${{ matrix.image.name }}-${{ hashFiles(format('{0}', matrix.image.file)) }}
+          # fresh key every commit, but same prefix per Dockerfile
+          key: docker-image-${{ matrix.image.name }}-${{ hashFiles(format('{0}', matrix.image.file)) }}-${{ github.sha }}
           restore-keys: |
-            v2-docker-image-${{ matrix.image.name }}-
+            docker-image-${{ matrix.image.name }}-${{ hashFiles(format('{0}', matrix.image.file)) }}-
 
       # 2) Load cached image into Docker (if it exists)
       - name: Load cached image if present
@@ -103,6 +103,7 @@ jobs:
       - name: Update image cache
         run: |
           mkdir -p docker-cache
+          rm -f "docker-cache/${{ matrix.image.tar }}" || true
           cp "images/${{ matrix.image.tar }}" "docker-cache/${{ matrix.image.tar }}"
 
       - name: Print sha256sum of built image
