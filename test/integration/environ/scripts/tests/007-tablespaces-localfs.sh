@@ -48,20 +48,72 @@ x_backup_restore() {
     --dbname "dbname=replication options=-cdatestyle=iso replication=true application_name=pg_receivewal" \
     >>"${PG_RECEIVEWAL_LOG_FILE}" 2>&1 &
 
-  # make a basebackup before doing anything
-  echo_delim "creating basebackup"
-  pg_basebackup \
-    --pgdata="${BASEBACKUP_PATH}/data" \
-    --wal-method=none \
-    --checkpoint=fast \
-    --progress \
-    --no-password \
-    --verbose
+  # create tablespaces
+  mkdir -p "${TMPDIR}/spaces/alpha"
+  mkdir -p "${TMPDIR}/spaces/beta"
+  chown -R postgres:postgres "${TMPDIR}/spaces"
 
-  # trying to write ~100 of WAL files as quick as possible
-  for ((i = 0; i < 100; i++)); do
-    psql -U postgres -c 'drop table if exists xxx; select pg_switch_wal(); create table if not exists xxx(id serial);'
-  done
+"${PG_BINDIR}/psql" -v ON_ERROR_STOP=1 <<EOSQL
+-- tablespaces
+CREATE TABLESPACE ts_alpha LOCATION '${TMPDIR}/spaces/alpha';
+CREATE TABLESPACE ts_beta  LOCATION '${TMPDIR}/spaces/beta';
+EOSQL
+
+"${PG_BINDIR}/psql" -v ON_ERROR_STOP=1 <<'EOSQL'
+-- products
+CREATE TABLE products (
+    product_id   integer,
+    product_name text,
+    country      text
+) TABLESPACE ts_alpha;
+
+INSERT INTO products (product_id, product_name, country) VALUES
+    (1, 'Orion Lamp',    'Germany'),
+    (2, 'Silver Pen',    'United Kingdom'),
+    (3, 'Blue Notebook', 'Sweden');
+
+-- orders
+CREATE TABLE orders (
+    order_id    integer,
+    description text
+) TABLESPACE ts_beta;
+
+INSERT INTO orders (order_id, description) VALUES
+    (1, 'First customer order'),
+    (2, 'Bulk shipment'),
+    (3, 'Online marketplace order');
+
+-- customers
+CREATE TABLE customers (
+    customer_id integer,
+    full_name   text,
+    secret_hash text
+);
+
+INSERT INTO customers (customer_id, full_name, secret_hash) VALUES
+    (1, 'alice01',      'hash_a1b2c3'),
+    (2, 'bob_dev',      'hash_x9y8z7'),
+    (3, 'charlie_k',    'hash_q2w3e4'),
+    (4, 'dora_admin',   'hash_l0p9m8');
+EOSQL
+
+  # make a backup before doing anything
+  echo_delim "creating backup"
+  /usr/local/bin/pgrwl backup -c "${TMPDIR}/config.json"
+
+  # run inserts in a background
+  chmod +x "${BACKGROUND_INSERTS_SCRIPT_PATH}"
+  nohup "${BACKGROUND_INSERTS_SCRIPT_PATH}" >>"${BACKGROUND_INSERTS_SCRIPT_LOG_FILE}" 2>&1 &
+
+  # fill with 1M rows
+  echo_delim "running pgbench"
+  pgbench -i -s 10 postgres
+
+  # wait a little
+  sleep 5
+
+  # stop inserts
+  pkill -f inserts.sh
 
   # remember the state
   pg_dumpall -f "${TMPDIR}/pgdumpall-before" --restrict-key=0
@@ -70,9 +122,14 @@ x_backup_restore() {
   echo_delim "teardown"
   xpg_teardown
 
+  # save and cleanup tablespaces
+  cp -r "${TMPDIR}/spaces" "${TMPDIR}/spaces_backup"
+  rm -rf "${TMPDIR:?}/spaces/*"
+
   # restore from backup
   echo_delim "restoring backup"
-  mv "${BASEBACKUP_PATH}/data" "${PGDATA}"
+  #BACKUP_ID=$(find ${TMPDIR}/wal-archive/backups -mindepth 1 -maxdepth 1 -type d -printf "%T@ %f\n" | sort -n | tail -1 | cut -d' ' -f2)
+  /usr/local/bin/pgrwl restore --dest="${PGDATA}" -c "${TMPDIR}/config.json"
   chmod 0750 "${PGDATA}"
   chown -R postgres:postgres "${PGDATA}"
   touch "${PGDATA}/recovery.signal"
@@ -84,7 +141,6 @@ x_backup_restore() {
   # fix configs
   xpg_config
   cat <<EOF >>"${PG_CFG}"
-#restore_command = 'cp ${WAL_PATH}/%f %p'
 restore_command = 'pgrwl restore-command --serve-addr=127.0.0.1:7070 %f %p'
 EOF
 
@@ -107,10 +163,20 @@ EOF
   echo_delim "running diff on pg_dumpall dumps (before vs after)"
   pg_dumpall -f "${TMPDIR}/pgdumpall-after" --restrict-key=0
   diff "${TMPDIR}/pgdumpall-before" "${TMPDIR}/pgdumpall-after"
+  echo_delim "running diff on tablespaces (before vs after)"
+  diff -r "${TMPDIR}/spaces_backup" "${TMPDIR}/spaces"
+
+  # read the latest rec
+  echo_delim "read latest applied records"
+  echo "table content:"
+  psql --pset pager=off -c "select * from public.tslog;"
+  echo "insert log content:"
+  tail -10 "${BACKGROUND_INSERTS_SCRIPT_LOG_FILE}"
 
   # compare with pg_receivewal
   echo_delim "compare wal-archive with pg_receivewal"
   find "${WAL_PATH}" -type f -name "*.json" -delete
+  rm -rf "${WAL_PATH}/backups"
   bash "/var/lib/postgresql/scripts/utils/dircmp.sh" "${WAL_PATH}" "${PG_RECEIVEWAL_WAL_PATH}"
 }
 

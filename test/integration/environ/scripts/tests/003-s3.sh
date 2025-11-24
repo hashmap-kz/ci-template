@@ -1,23 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-. /var/lib/postgresql/scripts/pg/pg.sh
+. /var/lib/postgresql/scripts/tests/utils.sh
 
-export BASEBACKUP_PATH="/tmp/basebackup"
-export WAL_PATH="/tmp/wal-archive"
-export LOG_FILE="/tmp/pgrwl.log"
-
-# Default environment
-export PGHOST="localhost"
-export PGPORT="5432"
-export PGUSER="postgres"
-export PGPASSWORD="postgres"
-
-x_remake_dirs() {
-  # cleanup possible state
-  rm -rf "${BASEBACKUP_PATH}" && mkdir -p "${BASEBACKUP_PATH}"
-  rm -rf "${WAL_PATH}" && mkdir -p "${WAL_PATH}"
-
-  cat <<EOF >/tmp/config.json
+x_remake_config() {
+  cat <<EOF > "${TMPDIR}/config.json"
 {
   "main": {
      "listen_port": 7070,
@@ -25,7 +11,11 @@ x_remake_dirs() {
   },
   "receiver": {
      "slot": "pgrwl_v5",
-     "no_loop": true
+     "no_loop": true,
+     "uploader": {
+       "sync_interval": "5s",
+       "max_concurrency": 4
+     }
   },
   "log": {
     "level": "trace",
@@ -34,10 +24,6 @@ x_remake_dirs() {
   },
   "storage": {
     "name": "s3",
-    "uploader": {
-      "sync_interval": "5s",
-      "max_concurrency": 4
-    },
     "compression": {
       "algo": "gzip"
     },
@@ -61,7 +47,9 @@ EOF
 }
 
 x_backup_restore() {
+  echo_delim "cleanup state"
   x_remake_dirs
+  x_remake_config
 
   # rerun the cluster
   echo_delim "init and run a cluster"
@@ -70,7 +58,7 @@ x_backup_restore() {
 
   # run wal-receivers
   echo_delim "running wal-receivers"
-  nohup /usr/local/bin/pgrwl start -c "/tmp/config.json" -m receive >>"$LOG_FILE" 2>&1 &
+  nohup /usr/local/bin/pgrwl start -c "${TMPDIR}/config.json" -m receive >>"$LOG_FILE" 2>&1 &
 
   # make a basebackup before doing anything
   echo_delim "creating basebackup"
@@ -88,7 +76,7 @@ x_backup_restore() {
   done
 
   # remember the state
-  pg_dumpall -f /tmp/pg_dumpall-before
+  pg_dumpall -f "${TMPDIR}/pgdumpall-before" --restrict-key=0
 
   echo_delim "waiting upload"
   sleep 10
@@ -113,7 +101,7 @@ EOF
 
   # run serve-mode
   echo_delim "running wal fetcher"
-  nohup /usr/local/bin/pgrwl start -c "/tmp/config.json" -m serve >>"$LOG_FILE" 2>&1 &
+  nohup /usr/local/bin/pgrwl start -c "${TMPDIR}/config.json" -m serve >>"$LOG_FILE" 2>&1 &
 
   # cleanup logs
   >/var/log/postgresql/pg.log
@@ -128,8 +116,8 @@ EOF
 
   # check diffs
   echo_delim "running diff on pg_dumpall dumps (before vs after)"
-  pg_dumpall -f /tmp/pg_dumpall-arter
-  diff /tmp/pg_dumpall-before /tmp/pg_dumpall-arter
+  pg_dumpall -f "${TMPDIR}/pgdumpall-after" --restrict-key=0
+  diff "${TMPDIR}/pgdumpall-before" "${TMPDIR}/pgdumpall-after"
 }
 
 x_backup_restore "${@}"

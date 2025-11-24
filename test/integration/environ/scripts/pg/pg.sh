@@ -3,7 +3,7 @@
 . /var/lib/postgresql/scripts/pg/utils.sh
 
 # custom
-export PG_MAJOR=17
+export PG_MAJOR="${PG_MAJOR:-17}"
 export PG_BINDIR="/usr/lib/postgresql/${PG_MAJOR}/bin"
 export PG_CFG="/etc/postgresql/${PG_MAJOR}/main/postgresql.conf"
 export PG_HBA="/etc/postgresql/${PG_MAJOR}/main/pg_hba.conf"
@@ -64,6 +64,45 @@ xpg_wait_is_in_recovery() {
     sleep 1
     is_in_recovery=$(psql -At -c "SELECT pg_catalog.pg_is_in_recovery()")
   done
+}
+
+xpg_recreate_slots() {
+"${PG_BINDIR}/psql" -v ON_ERROR_STOP=1 <<'EOSQL'
+  -- pgrwl
+  SELECT pg_drop_replication_slot('pgrwl_v5') WHERE EXISTS (SELECT 1 FROM pg_replication_slots WHERE slot_name = 'pgrwl_v5');
+  SELECT pg_switch_wal();
+  SELECT * FROM pg_create_physical_replication_slot('pgrwl_v5', true, false);
+  -- pg_receivewal
+  SELECT pg_drop_replication_slot('pg_receivewal') WHERE EXISTS (SELECT 1 FROM pg_replication_slots WHERE slot_name = 'pg_receivewal');
+  SELECT pg_switch_wal();
+  SELECT * FROM pg_create_physical_replication_slot('pg_receivewal', true, false);
+  -- starting point
+  CHECKPOINT;
+  SELECT pg_switch_wal();
+EOSQL
+
+}
+
+xpg_create_slots() {
+"${PG_BINDIR}/psql" -v ON_ERROR_STOP=1 <<'EOSQL'
+  -- pgrwl
+  SELECT * FROM pg_create_physical_replication_slot('pgrwl_v5', true, false);
+  -- pg_receivewal
+  SELECT * FROM pg_create_physical_replication_slot('pg_receivewal', true, false);
+  -- starting point
+  CHECKPOINT;
+  SELECT pg_switch_wal();
+EOSQL
+
+}
+
+xpg_checkpoint_switch_wal() {
+"${PG_BINDIR}/psql" -v ON_ERROR_STOP=1 <<'EOSQL'
+  -- starting point
+  CHECKPOINT;
+  SELECT pg_switch_wal();
+EOSQL
+
 }
 
 xpg_config() {
