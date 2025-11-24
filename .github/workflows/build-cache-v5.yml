@@ -5,6 +5,7 @@ on:
 
 jobs:
   build_images:
+    name: build ${{ matrix.image.name }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
