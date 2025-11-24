@@ -6,25 +6,12 @@ on:
 
 env:
   CACHE_FOLDER: docker-cache
-  CACHE_FILE_DOCKER_SSHD: docker-cache/docker_sshd.tgz
-  CACHE_FILE_DOCKER_PG_PRIMARY: docker-cache/docker_pg_primary.tgz
-  CACHE_FILE_DOCKER_PG_STANDBY: docker-cache/docker_pg_standby.tgz
-  CACHE_FILE_DOCKER_MINIO: docker-cache/docker_minio.tgz
-  CACHE_FILE_DOCKER_MINIO_MC: docker-cache/docker_minio_mc.tgz
   COMPOSE_FILE: "test/integration/environ/docker-compose.yml"
 
 jobs:
   build_images:
-    name: Build images (pg${{ matrix.pg_major }})
+    name: Build and cache Docker images
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        pg_major: [17, 18]
-
-    env:
-      PG_MAJOR: ${{ matrix.pg_major }}
 
     steps:
       - name: Checkout code
@@ -34,51 +21,73 @@ jobs:
         id: cache-images
         uses: actions/cache@v4
         with:
-          path: |
-            ${{ env.CACHE_FILE_DOCKER_PG_PRIMARY }}
-            ${{ env.CACHE_FILE_DOCKER_PG_STANDBY }}
-            ${{ env.CACHE_FILE_DOCKER_SSHD }}
-            ${{ env.CACHE_FILE_DOCKER_MINIO }}
-            ${{ env.CACHE_FILE_DOCKER_MINIO_MC }}
-          key: buildx-a8e6319a-8b6d-46d8-aa3a-c5814a4dc166
+          # cache the whole folder, not individual files
+          path: ${{ env.CACHE_FOLDER }}
+          # change key if Dockerfiles change (simple version: tie to commit)
+          key: docker-images-${{ github.sha }}
+          restore-keys: |
+            docker-images-
 
-      - name: Build Docker images and cache them
-        # NOTE: rebuild always
-        # if: steps.cache-images.outputs.cache-hit != 'true'
+      - name: Build Docker images and save them
+        # if cache hit, you can skip rebuild to be faster
+        if: steps.cache-images.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
-          mkdir -p "${{ env.CACHE_FOLDER }}"
 
-          echo "======= Restored cached image archives"
-          ls -lah "${{ env.CACHE_FOLDER }}" || true
+          mkdir -p "${CACHE_FOLDER}"
 
-          gunzip -c "${{ env.CACHE_FILE_DOCKER_PG_PRIMARY }}" | docker load || true
-          gunzip -c "${{ env.CACHE_FILE_DOCKER_PG_STANDBY }}" | docker load || true
-          gunzip -c "${{ env.CACHE_FILE_DOCKER_SSHD }}" | docker load || true
-          gunzip -c "${{ env.CACHE_FILE_DOCKER_MINIO }}" | docker load || true
-          gunzip -c "${{ env.CACHE_FILE_DOCKER_MINIO_MC }}" | docker load || true
+          PG_MAJORS="17 18"
 
-          echo "Building images for PG_MAJOR=${PG_MAJOR}"
-          #docker compose -f "${{ env.COMPOSE_FILE }}" build pg-primary pg-standby sshd minio createbuckets
-          
-          docker build -t pgrwl/pg-primary-${PG_MAJOR} --build-arg=PG_MAJOR=${PG_MAJOR} --build-arg BUILDKIT_INLINE_CACHE=1 -f test/integration/environ/dockerfiles/pg-primary/Dockerfile --cache-from=pgrwl/pg-primary-${PG_MAJOR}:latest test/integration/environ
-          docker build -t pgrwl/pg-standby-${PG_MAJOR} --build-arg=PG_MAJOR=${PG_MAJOR} --build-arg BUILDKIT_INLINE_CACHE=1 -f test/integration/environ/dockerfiles/pg-standby/Dockerfile --cache-from=pgrwl/pg-standby-${PG_MAJOR}:latest test/integration/environ
-          docker build -t pgrwl/sshd                                                    --build-arg BUILDKIT_INLINE_CACHE=1 -f test/integration/environ/dockerfiles/sshd/Dockerfile       --cache-from=pgrwl/sshd:latest                   test/integration/environ
-          docker build -t pgrwl/minio                                                   --build-arg BUILDKIT_INLINE_CACHE=1 -f test/integration/environ/dockerfiles/minio/Dockerfile      --cache-from=pgrwl/minio:latest                  test/integration/environ
-          docker build -t pgrwl/minio-mc                                                --build-arg BUILDKIT_INLINE_CACHE=1 -f test/integration/environ/dockerfiles/minio_mc/Dockerfile   --cache-from=pgrwl/minio-mc:latest               test/integration/environ
+          echo "======= Building pg images for PG_MAJORS=${PG_MAJORS}"
 
-          echo "======= Images after build"
-          docker images || true
+          for PG_MAJOR in ${PG_MAJORS}; do
+            echo "---- Building pg-primary-${PG_MAJOR}"
+            docker build \
+              -t "pgrwl/pg-primary-${PG_MAJOR}" \
+              --build-arg=PG_MAJOR="${PG_MAJOR}" \
+              -f test/integration/environ/dockerfiles/pg-primary/Dockerfile \
+              test/integration/environ
 
-          # image names must match docker-compose.yml
-          docker save "pgrwl/pg-primary-${PG_MAJOR}" | gzip -c > "${{ env.CACHE_FILE_DOCKER_PG_PRIMARY }}"
-          docker save "pgrwl/pg-standby-${PG_MAJOR}" | gzip -c > "${{ env.CACHE_FILE_DOCKER_PG_STANDBY }}"
-          docker save "pgrwl/sshd" | gzip -c > "${{ env.CACHE_FILE_DOCKER_SSHD }}"
-          docker save "pgrwl/minio" | gzip -c > "${{ env.CACHE_FILE_DOCKER_MINIO }}"
-          docker save "pgrwl/minio-mc" | gzip -c > "${{ env.CACHE_FILE_DOCKER_MINIO_MC }}"
+            echo "---- Building pg-standby-${PG_MAJOR}"
+            docker build \
+              -t "pgrwl/pg-standby-${PG_MAJOR}" \
+              --build-arg=PG_MAJOR="${PG_MAJOR}" \
+              -f test/integration/environ/dockerfiles/pg-standby/Dockerfile \
+              test/integration/environ
+
+            echo "---- Saving pg-primary-${PG_MAJOR}"
+            docker save "pgrwl/pg-primary-${PG_MAJOR}" \
+              | gzip -c > "${CACHE_FOLDER}/docker_pg_primary_${PG_MAJOR}.tgz"
+
+            echo "---- Saving pg-standby-${PG_MAJOR}"
+            docker save "pgrwl/pg-standby-${PG_MAJOR}" \
+              | gzip -c > "${CACHE_FOLDER}/docker_pg_standby_${PG_MAJOR}.tgz"
+          done
+
+          echo "======= Building common images (no PG_MAJOR)"
+
+          docker build \
+            -t pgrwl/sshd \
+            -f test/integration/environ/dockerfiles/sshd/Dockerfile \
+            test/integration/environ
+
+          docker build \
+            -t pgrwl/minio \
+            -f test/integration/environ/dockerfiles/minio/Dockerfile \
+            test/integration/environ
+
+          docker build \
+            -t pgrwl/minio-mc \
+            -f test/integration/environ/dockerfiles/minio_mc/Dockerfile \
+            test/integration/environ
+
+          echo "======= Saving common images"
+          docker save "pgrwl/sshd"      | gzip -c > "${CACHE_FOLDER}/docker_sshd.tgz"
+          docker save "pgrwl/minio"     | gzip -c > "${CACHE_FOLDER}/docker_minio.tgz"
+          docker save "pgrwl/minio-mc"  | gzip -c > "${CACHE_FOLDER}/docker_minio_mc.tgz"
 
           echo "======= Cached archives"
-          ls -lah "${{ env.CACHE_FOLDER }}"
+          ls -lah "${CACHE_FOLDER}"
 
   test:
     name: Run integration tests (pg${{ matrix.pg_major }})
@@ -101,36 +110,38 @@ jobs:
         id: cache-images
         uses: actions/cache@v4
         with:
-          path: |
-            ${{ env.CACHE_FILE_DOCKER_PG_PRIMARY }}
-            ${{ env.CACHE_FILE_DOCKER_PG_STANDBY }}
-            ${{ env.CACHE_FILE_DOCKER_SSHD }}
-            ${{ env.CACHE_FILE_DOCKER_MINIO }}
-            ${{ env.CACHE_FILE_DOCKER_MINIO_MC }}
-          key: buildx-a8e6319a-8b6d-46d8-aa3a-c5814a4dc166
+          path: ${{ env.CACHE_FOLDER }}
+          key: docker-images-${{ github.sha }}
+          restore-keys: |
+            docker-images-
 
       - name: Fail if cache is missing
         if: steps.cache-images.outputs.cache-hit != 'true'
         run: |
-          echo "Docker image cache not found for PG_MAJOR=${PG_MAJOR}!"
+          echo "Docker image cache not found!"
           exit 1
 
       - name: Load Docker images from cache
         run: |
           set -euo pipefail
 
-          ls -lah "${{ env.CACHE_FOLDER }}" || true
+          echo "======= Cached archives"
+          ls -lah "${{ env.CACHE_FOLDER }}"
 
-          gunzip -c "${{ env.CACHE_FILE_DOCKER_PG_PRIMARY }}" | docker load
-          gunzip -c "${{ env.CACHE_FILE_DOCKER_PG_STANDBY }}" | docker load
-          gunzip -c "${{ env.CACHE_FILE_DOCKER_SSHD }}" | docker load
-          gunzip -c "${{ env.CACHE_FILE_DOCKER_MINIO }}" | docker load
-          gunzip -c "${{ env.CACHE_FILE_DOCKER_MINIO_MC }}" | docker load
+          echo "Loading images for PG_MAJOR=${PG_MAJOR}"
+
+          gunzip -c "${{ env.CACHE_FOLDER }}/docker_pg_primary_${PG_MAJOR}.tgz" | docker load
+          gunzip -c "${{ env.CACHE_FOLDER }}/docker_pg_standby_${PG_MAJOR}.tgz" | docker load
+          gunzip -c "${{ env.CACHE_FOLDER }}/docker_sshd.tgz"                  | docker load
+          gunzip -c "${{ env.CACHE_FOLDER }}/docker_minio.tgz"                 | docker load
+          gunzip -c "${{ env.CACHE_FOLDER }}/docker_minio_mc.tgz"              | docker load
 
           echo "======= Images after load"
           docker images || true
 
       - name: Run tests
+        env:
+          PG_MAJOR: ${{ env.PG_MAJOR }}
         run: |
           set -euo pipefail
 
