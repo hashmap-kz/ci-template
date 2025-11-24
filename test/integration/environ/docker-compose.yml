@@ -90,7 +90,7 @@ services:
   createbuckets:
     build:
       context: .
-      dockerfile: ./dockerfiles/minio_mc/Dockerfile
+      dockerfile: dockerfiles/minio-mc/Dockerfile
     image: pgrwl/minio-mc
     depends_on:
       minio:
