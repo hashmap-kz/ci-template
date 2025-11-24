@@ -32,7 +32,7 @@ jobs:
       - name: Compute image cache key
         id: cache-key
         run: |
-          KEY="docker-images-pg${{ matrix.image.name }}-${{ hashFiles(
+          KEY="docker-images-${{ matrix.image.name }}-${{ hashFiles(
             'go.mod',
             'test/integration/environ/docker-compose.yml',
             'test/integration/environ/dockerfiles/**',
@@ -65,6 +65,11 @@ jobs:
           path: |
             ${{ env.CACHE_FOLDER }}/${{ matrix.image.tarball }}
           key: ${{ steps.cache-key.outputs.value }}
+
+      - name: Check cache
+        run: |
+          ls -lah ${{ env.CACHE_FOLDER }}
+          docker images -a
 
 #jobs:
 #  build_images:
