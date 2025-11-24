@@ -31,18 +31,18 @@ jobs:
       - name: Cache 'pg-primary' Docker layers
         uses: actions/cache@v4
         with:
-          path: /tmp/.buildx-cache-pg-primary-${{ matrix.pg_major }}
-          key: ${{ runner.os }}-buildx-pg-primary-${{ matrix.pg_major }}-${{ github.sha }}
+          path: /tmp/.pg-primary-${{ matrix.pg_major }}
+          key: pg-primary-${{ matrix.pg_major }}
           restore-keys: |
-            ${{ runner.os }}-buildx-pg-primary-${{ matrix.pg_major }}-
+            pg-primary-${{ matrix.pg_major }}-
 
       - name: Cache 'pg-standby' Docker layers
         uses: actions/cache@v4
         with:
-          path: /tmp/.buildx-cache-pg-standby-${{ matrix.pg_major }}
-          key: ${{ runner.os }}-buildx-pg-standby-${{ matrix.pg_major }}-${{ github.sha }}
+          path: /tmp/.pg-standby-${{ matrix.pg_major }}
+          key: pg-standby-${{ matrix.pg_major }}
           restore-keys: |
-            ${{ runner.os }}-buildx-pg-standby-${{ matrix.pg_major }}-
+            pg-standby-${{ matrix.pg_major }}-
 
       - name: Build 'pg-primary' image
         uses: docker/build-push-action@v6
@@ -54,8 +54,8 @@ jobs:
           tags: pgrwl/pg-primary-${{ matrix.pg_major }}
           build-args: |
             PG_MAJOR=${{ matrix.pg_major }}
-          cache-from: type=local,src=/tmp/.buildx-cache-pg-primary-${{ matrix.pg_major }}
-          cache-to: type=local,dest=/tmp/.buildx-cache-new-pg-primary-${{ matrix.pg_major }},mode=max
+          cache-from: type=local,src=/tmp/.pg-primary-${{ matrix.pg_major }}
+          cache-to: type=local,dest=/tmp/.new-pg-primary-${{ matrix.pg_major }},mode=max
           # share between jobs (https://docs.docker.com/build/ci/github-actions/share-image-jobs/)
           outputs: type=docker,dest=${{ runner.temp }}/pg-primary-${{ matrix.pg_major }}.tar
 
@@ -69,8 +69,8 @@ jobs:
           tags: pgrwl/pg-standby-${{ matrix.pg_major }}
           build-args: |
             PG_MAJOR=${{ matrix.pg_major }}
-          cache-from: type=local,src=/tmp/.buildx-cache-pg-standby-${{ matrix.pg_major }}
-          cache-to: type=local,dest=/tmp/.buildx-cache-new-pg-standby-${{ matrix.pg_major }},mode=max
+          cache-from: type=local,src=/tmp/.pg-standby-${{ matrix.pg_major }}
+          cache-to: type=local,dest=/tmp/.new-pg-standby-${{ matrix.pg_major }},mode=max
           # share between jobs (https://docs.docker.com/build/ci/github-actions/share-image-jobs/)
           outputs: type=docker,dest=${{ runner.temp }}/pg-standby-${{ matrix.pg_major }}.tar
 
@@ -78,25 +78,23 @@ jobs:
       - name: Upload artifact 'pg-primary'
         uses: actions/upload-artifact@v4
         with:
-          name: pg-primary-${{ matrix.pg_major }}
-          path: pg-primary-${{ matrix.pg_major }}.tar
+          path: ${{ runner.temp }}/pg-primary-${{ matrix.pg_major }}.tar
 
       # https://docs.docker.com/build/ci/github-actions/share-image-jobs/
       - name: Upload artifact 'pg-standby'
         uses: actions/upload-artifact@v4
         with:
-          name: pg-standby-${{ matrix.pg_major }}
-          path: pg-standby-${{ matrix.pg_major }}.tar
+          path: ${{ runner.temp }}/pg-standby-${{ matrix.pg_major }}.tar
 
       - name: Move cache 'pg-primary'
         run: |
-          rm -rf /tmp/.buildx-cache-pg-primary-${{ matrix.pg_major }}
-          mv /tmp/.buildx-cache-new-pg-primary-${{ matrix.pg_major }} /tmp/.buildx-cache-pg-primary-${{ matrix.pg_major }}
+          rm -rf /tmp/.pg-primary-${{ matrix.pg_major }}
+          mv /tmp/.new-pg-primary-${{ matrix.pg_major }} /tmp/.pg-primary-${{ matrix.pg_major }}
 
       - name: Move cache 'pg-standby'
         run: |
-          rm -rf /tmp/.buildx-cache-pg-standby-${{ matrix.pg_major }}
-          mv /tmp/.buildx-cache-new-pg-standby-${{ matrix.pg_major }} /tmp/.buildx-cache-pg-standby-${{ matrix.pg_major }}
+          rm -rf /tmp/.pg-standby-${{ matrix.pg_major }}
+          mv /tmp/.new-pg-standby-${{ matrix.pg_major }} /tmp/.pg-standby-${{ matrix.pg_major }}
 
   test:
     name: Run integration tests (pg${{ matrix.pg_major }})
