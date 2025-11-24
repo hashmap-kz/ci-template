@@ -17,7 +17,8 @@ jobs:
       # All image names in one place
       IMAGE_LIST: "pg-primary pg-standby minio minio_mc sshd"
       # Global buildx cache dir shared across all images
-      BUILDX_CACHE: /tmp/.buildx-cache
+      BUILDX_CACHE_PREV: /tmp/.buildx-cache
+      BUILDX_CACHE_CURR: /tmp/.buildx-cache-new
 
     steps:
       - name: Checkout repository
@@ -32,7 +33,7 @@ jobs:
       - name: Restore Buildx cache
         uses: actions/cache@v4
         with:
-          path: ${{ env.BUILDX_CACHE }}
+          path: ${{ env.BUILDX_CACHE_PREV }}
           key: buildx-${{ github.ref_name }}-${{ github.sha }}
           restore-keys: |
             buildx-${{ github.ref_name }}-
@@ -42,12 +43,14 @@ jobs:
         env:
           PG_MAJOR: ${{ env.PG_MAJOR }}
           IMAGE_LIST: ${{ env.IMAGE_LIST }}
-          BUILDX_CACHE: ${{ env.BUILDX_CACHE }}
+          BUILDX_CACHE_PREV: ${{ env.BUILDX_CACHE_PREV }}
+          BUILDX_CACHE_CURR: ${{ env.BUILDX_CACHE_CURR }}
         run: |
           set -euo pipefail
 
           # ensure cache dir exists
-          mkdir -p "${BUILDX_CACHE}"
+          mkdir -p "${BUILDX_CACHE_PREV}"
+          mkdir -p "${BUILDX_CACHE_CURR}"
 
           for img in ${IMAGE_LIST}; do
             TAG_SUFFIX=""
@@ -64,12 +67,17 @@ jobs:
               --file "test/integration/environ/dockerfiles/${img}/Dockerfile" \
               --tag "pgrwl/${img}${TAG_SUFFIX}" \
               "${BUILD_ARGS[@]}" \
-              --cache-from "type=local,src=${BUILDX_CACHE}" \
-              --cache-to "type=local,dest=${BUILDX_CACHE},mode=max" \
+              --cache-from "type=local,src=${BUILDX_CACHE_PREV}" \
+              --cache-to "type=local,dest=${BUILDX_CACHE_CURR},mode=max" \
               --load \
               "test/integration/environ"
             echo "::endgroup::"
           done
+
+      - name: Move new cache
+        run: |
+          rm -rf "${BUILDX_CACHE_PREV}"
+          mv "${BUILDX_CACHE_CURR}" "${BUILDX_CACHE_PREV}"
 
       - name: Show built images
         run: docker image ls
