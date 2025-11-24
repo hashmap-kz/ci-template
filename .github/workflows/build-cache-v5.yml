@@ -1,152 +1,33 @@
-name: Integration Tests
+name: ci
 
 on:
   push:
-  workflow_dispatch:
-
-env:
-  CACHE_FOLDER: docker-cache
-  COMPOSE_FILE: "test/integration/environ/docker-compose.yml"
 
 jobs:
   build_images:
-    name: Build and cache Docker images
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Restore Docker image cache
-        id: cache-images
-        uses: actions/cache@v4
+      - name: Build and push
+        uses: docker/build-push-action@v6
         with:
-          # cache the whole folder, not individual files
-          path: ${{ env.CACHE_FOLDER }}
-          # change key if Dockerfiles change (simple version: tie to commit)
-          key: docker-images-${{ github.sha }}
-          restore-keys: |
-            docker-images-
-
-      - name: Build Docker images and save them
-        # if cache hit, you can skip rebuild to be faster
-        if: steps.cache-images.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-
-          mkdir -p "${CACHE_FOLDER}"
-
-          PG_MAJORS="17 18"
-
-          echo "======= Building pg images for PG_MAJORS=${PG_MAJORS}"
-
-          for PG_MAJOR in ${PG_MAJORS}; do
-            echo "---- Building pg-primary-${PG_MAJOR}"
-            docker build \
-              -t "pgrwl/pg-primary-${PG_MAJOR}" \
-              --build-arg=PG_MAJOR="${PG_MAJOR}" \
-              -f test/integration/environ/dockerfiles/pg-primary/Dockerfile \
-              test/integration/environ
-
-            echo "---- Building pg-standby-${PG_MAJOR}"
-            docker build \
-              -t "pgrwl/pg-standby-${PG_MAJOR}" \
-              --build-arg=PG_MAJOR="${PG_MAJOR}" \
-              -f test/integration/environ/dockerfiles/pg-standby/Dockerfile \
-              test/integration/environ
-
-            echo "---- Saving pg-primary-${PG_MAJOR}"
-            docker save "pgrwl/pg-primary-${PG_MAJOR}" \
-              | gzip -c > "${CACHE_FOLDER}/docker_pg_primary_${PG_MAJOR}.tgz"
-
-            echo "---- Saving pg-standby-${PG_MAJOR}"
-            docker save "pgrwl/pg-standby-${PG_MAJOR}" \
-              | gzip -c > "${CACHE_FOLDER}/docker_pg_standby_${PG_MAJOR}.tgz"
-          done
-
-          echo "======= Building common images (no PG_MAJOR)"
-
-          docker build \
-            -t pgrwl/sshd \
-            -f test/integration/environ/dockerfiles/sshd/Dockerfile \
-            test/integration/environ
-
-          docker build \
-            -t pgrwl/minio \
-            -f test/integration/environ/dockerfiles/minio/Dockerfile \
-            test/integration/environ
-
-          docker build \
-            -t pgrwl/minio-mc \
-            -f test/integration/environ/dockerfiles/minio_mc/Dockerfile \
-            test/integration/environ
-
-          echo "======= Saving common images"
-          docker save "pgrwl/sshd"      | gzip -c > "${CACHE_FOLDER}/docker_sshd.tgz"
-          docker save "pgrwl/minio"     | gzip -c > "${CACHE_FOLDER}/docker_minio.tgz"
-          docker save "pgrwl/minio-mc"  | gzip -c > "${CACHE_FOLDER}/docker_minio_mc.tgz"
-
-          echo "======= Cached archives"
-          ls -lah "${CACHE_FOLDER}"
+          tags: user/app:latest
+          file: test/integration/environ/dockerfiles/pg-primary/Dockerfile
+          context: test/integration/environ
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   test:
-    name: Run integration tests (pg${{ matrix.pg_major }})
+    name: Test
     runs-on: ubuntu-latest
     needs: [build_images]
 
-    strategy:
-      fail-fast: false
-      matrix:
-        pg_major: [17, 18]
-
-    env:
-      PG_MAJOR: ${{ matrix.pg_major }}
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Restore Docker image cache
-        id: cache-images
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.CACHE_FOLDER }}
-          key: docker-images-${{ github.sha }}
-          restore-keys: |
-            docker-images-
-
-      - name: Fail if cache is missing
-        if: steps.cache-images.outputs.cache-hit != 'true'
+      - name: Load images
         run: |
-          echo "Docker image cache not found!"
-          exit 1
-
-      - name: Load Docker images from cache
-        run: |
-          set -euo pipefail
-
-          echo "======= Cached archives"
-          ls -lah "${{ env.CACHE_FOLDER }}"
-
-          echo "Loading images for PG_MAJOR=${PG_MAJOR}"
-
-          gunzip -c "${{ env.CACHE_FOLDER }}/docker_pg_primary_${PG_MAJOR}.tgz" | docker load
-          gunzip -c "${{ env.CACHE_FOLDER }}/docker_pg_standby_${PG_MAJOR}.tgz" | docker load
-          gunzip -c "${{ env.CACHE_FOLDER }}/docker_sshd.tgz"                  | docker load
-          gunzip -c "${{ env.CACHE_FOLDER }}/docker_minio.tgz"                 | docker load
-          gunzip -c "${{ env.CACHE_FOLDER }}/docker_minio_mc.tgz"              | docker load
-
-          echo "======= Images after load"
-          docker images || true
-
-      - name: Run tests
-        env:
-          PG_MAJOR: ${{ env.PG_MAJOR }}
-        run: |
-          set -euo pipefail
-
-          echo "Running integration tests against PostgreSQL ${PG_MAJOR}"
-          docker images || true
-
-          docker compose -f "${{ env.COMPOSE_FILE }}" up -d
-          docker ps
+          docker image ls -a
