@@ -61,11 +61,11 @@ jobs:
           echo "Building images for PG_MAJOR=${PG_MAJOR}"
           #docker compose -f "${{ env.COMPOSE_FILE }}" build pg-primary pg-standby sshd minio createbuckets
           
-          docker build -t pgrwl/pg-primary-${PG_MAJOR} --build-arg=PG_MAJOR=${PG_MAJOR} -f test/integration/environ/dockerfiles/pg-primary/Dockerfile --cache-from=pgrwl/pg-primary-${PG_MAJOR}:latest test/integration/environ
-          docker build -t pgrwl/pg-standby-${PG_MAJOR} --build-arg=PG_MAJOR=${PG_MAJOR} -f test/integration/environ/dockerfiles/pg-standby/Dockerfile --cache-from=pgrwl/pg-standby-${PG_MAJOR}:latest test/integration/environ
-          docker build -t pgrwl/sshd                                                    -f test/integration/environ/dockerfiles/sshd/Dockerfile       --cache-from=pgrwl/sshd:latest                   test/integration/environ
-          docker build -t pgrwl/minio                                                   -f test/integration/environ/dockerfiles/minio/Dockerfile      --cache-from=pgrwl/minio:latest                  test/integration/environ
-          docker build -t pgrwl/minio-mc                                                -f test/integration/environ/dockerfiles/minio_mc/Dockerfile   --cache-from=pgrwl/minio-mc:latest               test/integration/environ
+          docker build -t pgrwl/pg-primary-${PG_MAJOR} --build-arg=PG_MAJOR=${PG_MAJOR} --build-arg BUILDKIT_INLINE_CACHE=1 -f test/integration/environ/dockerfiles/pg-primary/Dockerfile --cache-from=pgrwl/pg-primary-${PG_MAJOR}:latest test/integration/environ
+          docker build -t pgrwl/pg-standby-${PG_MAJOR} --build-arg=PG_MAJOR=${PG_MAJOR} --build-arg BUILDKIT_INLINE_CACHE=1 -f test/integration/environ/dockerfiles/pg-standby/Dockerfile --cache-from=pgrwl/pg-standby-${PG_MAJOR}:latest test/integration/environ
+          docker build -t pgrwl/sshd                                                    --build-arg BUILDKIT_INLINE_CACHE=1 -f test/integration/environ/dockerfiles/sshd/Dockerfile       --cache-from=pgrwl/sshd:latest                   test/integration/environ
+          docker build -t pgrwl/minio                                                   --build-arg BUILDKIT_INLINE_CACHE=1 -f test/integration/environ/dockerfiles/minio/Dockerfile      --cache-from=pgrwl/minio:latest                  test/integration/environ
+          docker build -t pgrwl/minio-mc                                                --build-arg BUILDKIT_INLINE_CACHE=1 -f test/integration/environ/dockerfiles/minio_mc/Dockerfile   --cache-from=pgrwl/minio-mc:latest               test/integration/environ
 
           echo "======= Images after build"
           docker images || true
