@@ -58,10 +58,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: docker-cache
-          # cache key per image & Dockerfile content
-          key: docker-image-${{ matrix.image.name }}-${{ hashFiles(format('{0}', matrix.image.file)) }}
+          # bump cache version to avoid old, non-inline-cache images
+          key: v2-docker-image-${{ matrix.image.name }}-${{ hashFiles(format('{0}', matrix.image.file)) }}
           restore-keys: |
-            docker-image-${{ matrix.image.name }}-
+            v2-docker-image-${{ matrix.image.name }}-
 
       # 2) Load cached image into Docker (if it exists)
       - name: Load cached image if present
