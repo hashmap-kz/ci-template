@@ -120,14 +120,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: pg-standby-${{ matrix.pg_major }}
-          path: ${{ runner.temp }}/pg-standby-${{ matrix.pg_major }}.tar
+          path: ${{ runner.temp }}
 
       # https://docs.docker.com/build/ci/github-actions/share-image-jobs/
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: pg-primary-${{ matrix.pg_major }}
-          path: ${{ runner.temp }}/pg-primary-${{ matrix.pg_major }}.tar
+          path: ${{ runner.temp }}
 
       - name: Load image
         run: |
