@@ -4,34 +4,20 @@ on:
   push:
 
 jobs:
-  build_images:
+  build_and_test:
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # PG images (multi-version)
-          - name: pg-primary
-            pg_major: 17
-          - name: pg-primary
-            pg_major: 18
-          - name: pg-standby
-            pg_major: 17
-          - name: pg-standby
-            pg_major: 18
-
-          # Other images (no PG_MAJOR needed)
-          - name: minio
-          - name: minio_mc
-          - name: sshd
+        pg_major: [17, 18]
 
     env:
-      # Will be "17"/"18" for pg images, and empty for others
       PG_MAJOR: ${{ matrix.pg_major }}
-
-      # Handy suffix for tags / filenames / cache keys, e.g. "-17" or ""
-      TAG_SUFFIX: ${{ matrix.pg_major && format('-{0}', matrix.pg_major) || '' }}
+      # All image names in one place
+      IMAGE_LIST: "pg-primary pg-standby minio minio_mc sshd"
+      # Global buildx cache dir shared across all images
+      BUILDX_CACHE: /tmp/.buildx-cache
 
     steps:
       - name: Checkout repository
@@ -41,73 +27,60 @@ jobs:
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        id: buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Cache Docker layers for ${{ matrix.name }}${{ env.TAG_SUFFIX }}
+      - name: Restore Buildx cache
         uses: actions/cache@v4
         with:
-          path: /tmp/.${{ matrix.name }}${{ env.TAG_SUFFIX }}
-          key: ${{ matrix.name }}${{ env.TAG_SUFFIX }}-${{ github.sha }}
+          path: ${{ env.BUILDX_CACHE }}
+          key: buildx-${{ github.ref_name }}-${{ github.sha }}
           restore-keys: |
-            ${{ matrix.name }}${{ env.TAG_SUFFIX }}-
+            buildx-${{ github.ref_name }}-
+            buildx-
 
-      - name: Build '${{ matrix.name }}' image
-        uses: docker/build-push-action@v6
-        with:
-          context: test/integration/environ
-          file: test/integration/environ/dockerfiles/${{ matrix.name }}/Dockerfile
-          #platforms: linux/amd64,linux/arm64
-          #push: ${{ github.ref_type == 'tag' }}
-          # Example tag pattern: pgrwl/pg-primary-17, pgrwl/minio
-          tags: |
-            pgrwl/${{ matrix.name }}${{ env.TAG_SUFFIX }}
-          build-args: |
-            PG_MAJOR=${{ env.PG_MAJOR }}
-          # cache between pipelines
-          cache-from: type=local,src=/tmp/.${{ matrix.name }}${{ env.TAG_SUFFIX }}
-          cache-to: type=local,dest=/tmp/.new-${{ matrix.name }}${{ env.TAG_SUFFIX }},mode=max
-          # share between jobs (https://docs.docker.com/build/ci/github-actions/share-image-jobs/)
-          outputs: type=docker,dest=${{ runner.temp }}/${{ matrix.name }}${{ env.TAG_SUFFIX }}.tar
-
-      - name: Upload image artifacts
-        if: startsWith(matrix.name, 'pg-')
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.name }}${{ env.TAG_SUFFIX }}
-          path: ${{ runner.temp }}/${{ matrix.name }}${{ env.TAG_SUFFIX }}.tar
-
-      - name: Move cache for ${{ matrix.name }}${{ env.TAG_SUFFIX }}
+      - name: Build all images for PG_MAJOR=${{ env.PG_MAJOR }}
+        env:
+          PG_MAJOR: ${{ env.PG_MAJOR }}
+          IMAGE_LIST: ${{ env.IMAGE_LIST }}
+          BUILDX_CACHE: ${{ env.BUILDX_CACHE }}
         run: |
-          rm -rf /tmp/.${{ matrix.name }}${{ env.TAG_SUFFIX }}
-          mv /tmp/.new-${{ matrix.name }}${{ env.TAG_SUFFIX }} /tmp/.${{ matrix.name }}${{ env.TAG_SUFFIX }}
+          set -euo pipefail
 
-  test:
-    name: Run integration tests (pg${{ matrix.pg_major }})
-    runs-on: ubuntu-latest
-    needs: [build_images]
+          # ensure cache dir exists
+          mkdir -p "${BUILDX_CACHE}"
 
-    strategy:
-      fail-fast: false
-      matrix:
-        pg_major: [17, 18]
+          for img in ${IMAGE_LIST}; do
+            TAG_SUFFIX=""
+            BUILD_ARGS=()
 
-    env:
-      PG_MAJOR: ${{ matrix.pg_major }}
+            # pg-* images need PG_MAJOR in tag and as build-arg
+            if [[ "$img" == pg-* ]]; then
+              TAG_SUFFIX="-${PG_MAJOR}"
+              BUILD_ARGS+=(--build-arg "PG_MAJOR=${PG_MAJOR}")
+            fi
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+            echo "::group::Building ${img}${TAG_SUFFIX}"
+            docker buildx build \
+              --file "test/integration/environ/dockerfiles/${img}/Dockerfile" \
+              --tag "pgrwl/${img}${TAG_SUFFIX}" \
+              "${BUILD_ARGS[@]}" \
+              --cache-from "type=local,src=${BUILDX_CACHE}" \
+              --cache-to "type=local,dest=${BUILDX_CACHE},mode=max" \
+              --load \
+              "test/integration/environ"
+            echo "::endgroup::"
+          done
 
-      # https://docs.docker.com/build/ci/github-actions/share-image-jobs/
-      - name: Download pg images
-        uses: actions/download-artifact@v4
-        with:
-          path: ${{ runner.temp }}
-          merge-multiple: true
+      - name: Show built images
+        run: docker image ls
 
-      - name: Load images
+      - name: Run integration tests
+        env:
+          PG_MAJOR: ${{ env.PG_MAJOR }}
         run: |
-          docker load --input ${{ runner.temp }}/pg-primary-${{ matrix.pg_major }}.tar
-          docker load --input ${{ runner.temp }}/pg-standby-${{ matrix.pg_major }}.tar
-          docker image ls -a
+          set -euo pipefail
+          echo "Running tests for PG_MAJOR=${PG_MAJOR}"
+          # your real test command here:
+          # ./scripts/run-tests.sh "${PG_MAJOR}"
+          # example:
+          # docker compose -f test/integration/docker-compose.yml up --abort-on-container-exit
