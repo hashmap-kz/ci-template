@@ -1,0 +1,202 @@
+name: Build Cache Testing
+
+on:
+  push:
+
+env:
+  COMPOSE_FILE: "test/integration/environ/docker-compose.yml"
+
+jobs:
+  build:
+    name: build (${{ matrix.image.name }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        image:
+          #17
+          - name: pg-primary-17
+            file: test/integration/environ/dockerfiles/pg-primary/Dockerfile
+            tag: pgrwl/pg-primary-17:latest
+            tar: pg-primary-17.tgz
+            build_args: ""
+          - name: pg-standby-17
+            file: test/integration/environ/dockerfiles/pg-standby/Dockerfile
+            tag: pgrwl/pg-standby-17:latest
+            tar: pg-standby-17.tgz
+            build_args: ""
+          #18
+          - name: pg-standby-18
+            file: test/integration/environ/dockerfiles/pg-standby/Dockerfile
+            tag: pgrwl/pg-standby-18:latest
+            tar: pg-standby-18.tgz
+            build_args: "PG_MAJOR=18"
+          - name: pg-primary-18
+            file: test/integration/environ/dockerfiles/pg-primary/Dockerfile
+            tag: pgrwl/pg-primary-18:latest
+            tar: pg-primary-18.tgz
+            build_args: "PG_MAJOR=18"
+          #etc
+          - name: minio
+            file: test/integration/environ/dockerfiles/minio/Dockerfile
+            tag: pgrwl/minio:latest
+            tar: minio.tgz
+            build_args: ""
+          - name: minio-mc
+            file: test/integration/environ/dockerfiles/minio-mc/Dockerfile
+            tag: pgrwl/minio-mc:latest
+            tar: minio-mc.tgz
+            build_args: ""
+          - name: sshd
+            file: test/integration/environ/dockerfiles/sshd/Dockerfile
+            tag: pgrwl/sshd:latest
+            tar: sshd.tgz
+            build_args: ""
+
+    env:
+      QEMU_VERSION: v5.1.0
+      DOCKER_BUILDKIT: 1
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Prepare Binary
+        run: |
+          set -euo pipefail
+          make build
+          mv bin test/integration/environ
+
+      # 1) Restore cached image tar for this matrix image
+      - name: Restore Docker image cache
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: docker-cache
+          # fresh key every commit, but same prefix per Dockerfile
+          key: docker-image-${{ matrix.image.name }}-${{ hashFiles(format('{0}', matrix.image.file)) }}-${{ github.sha }}
+          restore-keys: |
+            docker-image-${{ matrix.image.name }}-${{ hashFiles(format('{0}', matrix.image.file)) }}-
+            docker-image-${{ matrix.image.name }}-
+            docker-image-
+
+      # 2) Load cached image into Docker (if it exists)
+      - name: Load cached image if present
+        run: |
+          mkdir -p docker-cache
+          if [ -f "docker-cache/${{ matrix.image.tar }}" ]; then
+            echo "Found cached image, loading..."
+            gunzip -c "docker-cache/${{ matrix.image.tar }}" | docker load
+          else
+            echo "No cached image found for ${{ matrix.image.name }}"
+          fi
+
+      # 3) Build using cache-from
+      - name: Build
+        run: |
+          EXTRA_ARGS=""
+          for arg in ${{ matrix.image.build_args }}; do
+            EXTRA_ARGS="$EXTRA_ARGS --build-arg $arg"
+          done
+          echo "Extra build args: $EXTRA_ARGS"
+          
+          docker build \
+            -f "${{ matrix.image.file }}" \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --build-arg "test=0" \
+            $EXTRA_ARGS \
+            --label "commit=${{ github.sha }}" \
+            --cache-from "${{ matrix.image.tag }}" \
+            --tag "${{ matrix.image.tag }}" \
+            test/integration/environ
+
+      # 4) Save built image to .tgz for artifacts
+      - name: Save image to a .tgz file
+        run: |
+          mkdir -p images/
+          docker save "${{ matrix.image.tag }}" | gzip > "images/${{ matrix.image.tar }}"
+
+      # 5) Copy tar into cache dir so actions/cache captures it
+      - name: Update image cache
+        run: |
+          mkdir -p docker-cache
+          rm -f "docker-cache/${{ matrix.image.tar }}" || true
+          cp "images/${{ matrix.image.tar }}" "docker-cache/${{ matrix.image.tar }}"
+
+      # 6) Upload per-matrix artifact as before
+      - name: Upload docker image as build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-images-${{ matrix.image.name }}
+          path: images/
+          retention-days: 1
+
+  test:
+    name: Run integration tests (pg${{ matrix.pg_major }})
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        pg_major: [ 17, 18 ]
+    env:
+      DOCKER_CLI_EXPERIMENTAL: enabled
+      PG_MAJOR: ${{ matrix.pg_major }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: docker-images-*
+          path: docker-images
+          merge-multiple: true
+
+      # simple: find docker-images -type f -name '*.tgz' -exec docker load -i "{}" \;
+      # concurrently, with filters
+      - name: Load images locally
+        run: |
+          set -euo pipefail
+
+          LOAD_JOBS=3
+
+          # Images that depend on PG_MAJOR
+          per_pg=(
+            "pg-primary-${PG_MAJOR}.tgz"
+            "pg-standby-${PG_MAJOR}.tgz"
+          )
+
+          # Shared images
+          shared=(
+            "minio.tgz"
+            "minio-mc.tgz"
+            "sshd.tgz"
+          )
+
+          # Build the list of existing files and feed into xargs
+          {
+            for f in "${per_pg[@]}" "${shared[@]}"; do
+              path="docker-images/$f"
+              if [ -f "$path" ]; then
+                printf '%s\0' "$path"
+              else
+                echo "Skipping missing $path" >&2
+              fi
+            done
+          } | xargs -0 -n1 -P "${LOAD_JOBS}" docker load -i
+
+      - name: Run tests
+        run: |
+          set -euo pipefail
+
+          echo "Running integration tests against PostgreSQL ${PG_MAJOR}"
+          docker images || true
+
+          docker compose -f "${{ env.COMPOSE_FILE }}" up -d --no-build --pull=never
+          docker ps
