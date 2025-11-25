@@ -71,6 +71,7 @@ RUN echo "postgres:postgres" | chpasswd; \
 
 COPY scripts /var/lib/postgresql/scripts
 COPY files/configs /var/lib/postgresql/configs
+COPY bin/ /usr/local/bin
 RUN chown -R postgres:postgres /var/lib/postgresql
 
 ######################################################################
