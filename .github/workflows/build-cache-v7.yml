@@ -60,6 +60,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Prepare Binary
+        run: |
+          set -euo pipefail
+          make build
+          mv bin test/integration/environ
+
       # 1) Restore cached image tar for this matrix image
       - name: Restore Docker image cache
         id: cache
@@ -70,6 +81,8 @@ jobs:
           key: docker-image-${{ matrix.image.name }}-${{ hashFiles(format('{0}', matrix.image.file)) }}-${{ github.sha }}
           restore-keys: |
             docker-image-${{ matrix.image.name }}-${{ hashFiles(format('{0}', matrix.image.file)) }}-
+            docker-image-${{ matrix.image.name }}-
+            docker-image-
 
       # 2) Load cached image into Docker (if it exists)
       - name: Load cached image if present
@@ -77,7 +90,7 @@ jobs:
           mkdir -p docker-cache
           if [ -f "docker-cache/${{ matrix.image.tar }}" ]; then
             echo "Found cached image, loading..."
-            gunzip -c "docker-cache/${{ matrix.image.tar }}"| docker load
+            gunzip -c "docker-cache/${{ matrix.image.tar }}" | docker load
           else
             echo "No cached image found for ${{ matrix.image.name }}"
           fi
@@ -114,9 +127,6 @@ jobs:
           rm -f "docker-cache/${{ matrix.image.tar }}" || true
           cp "images/${{ matrix.image.tar }}" "docker-cache/${{ matrix.image.tar }}"
 
-#      - name: Print sha256sum of built image
-#        run: (cd images/; sha256sum *)
-
       # 6) Upload per-matrix artifact as before
       - name: Upload docker image as build artifact
         uses: actions/upload-artifact@v4
@@ -148,28 +158,7 @@ jobs:
           path: docker-images
           merge-multiple: true
 
-#      - name: Print sha256sum of downloaded images
-#        run: sha256sum docker-images/*
-
-# concurrently
-#      - name: Load images locally
-#        run: |
-#          set -euo pipefail
-#
-#          # max concurrent docker load jobs
-#          LOAD_JOBS=3
-#
-#          find docker-images -type f -name '*.tgz' -print0 \
-#          | xargs -0 -n1 -P "${LOAD_JOBS}" -I{} sh -c '
-#             echo "Loading {}"
-#             docker load -i "{}"
-#           '
-
-# simple
-#      - name: Load images locally
-#        run: |
-#          find docker-images -type f -name '*.tgz' -exec docker load -i "{}" \;
-
+      # simple: find docker-images -type f -name '*.tgz' -exec docker load -i "{}" \;
       # concurrently, with filters
       - name: Load images locally
         run: |
