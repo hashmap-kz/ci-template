@@ -18,6 +18,7 @@ jobs:
         uses: docker/bake-action@v6
         with:
           load: true # Load the image into Docker daemon after building
+          files: "test/integration/environ/docker-compose.yml"
           workdir: "test/integration/environ"
           set: |
             *.cache-to=type=gha,mode=max,scope=${{ github.repository }}
