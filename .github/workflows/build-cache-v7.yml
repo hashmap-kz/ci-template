@@ -129,7 +129,7 @@ jobs:
 
       # 6) Upload per-matrix artifact as before
       - name: Upload docker image as build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: docker-images-${{ matrix.image.name }}
           path: images/
